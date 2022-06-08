@@ -16,24 +16,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source("modules/estimation/DataPulls.R")
-source("modules/estimation/PlotsAndTables.R")
+source("modules/estimation/R/DataPulls.R")
+source("modules/estimation/R/PlotsAndTables.R")
 #source("modules/estimation/global.R")
 
-estimationViewer <- function(id=1) {
+
+
+estimationViewerTest <- function(id) {
+  tagList(
+    selectInput(NS(id, "var"), "Variable", choices = names(mtcars)),
+    numericInput(NS(id, "bins"), "bins", value = 10, min = 1),
+    plotOutput(NS(id, "hist"))
+  )
+}
+
+estimationViewer <- function(id) {
+  blind <- FALSE
   ns <- shiny::NS(id)
   
-  exposureOfInterest <- list()
-  outcomeOfInterest <- list()
-  cohortMethodAnalysis <- list()
-  database <- list()
-  blind <- T
-  
-  shiny::fluidPage(
-    style = "width:1500px;",
-    shiny::titlePanel(
-      paste("Evidence Explorer", if(blind) "***Blinded***" else "")),
-    tags$head(tags$style(type = "text/css", "
+  fluidPage(style = "width:1500px;",
+            titlePanel(paste("Evidence Explorer", if(blind) "***Blinded***" else "")),
+            tags$head(tags$style(type = "text/css", "
              #loadmessage {
                                  position: fixed;
                                  top: 0px;
@@ -48,283 +51,234 @@ estimationViewer <- function(id=1) {
                                  z-index: 105;
                                  }
                                  ")),
-    shiny::conditionalPanel(
-      ns = ns,
-      condition = "$('html').hasClass('shiny-busy')",
-      tags$div("Processing...",id = "loadmessage")
-    ),
-    
-    shiny::fluidRow(
-      shiny::column(3,
-                    shiny::selectInput(
-                      inputId = ns("target"), 
-                      label = "Target", 
-                      choices = unique(exposureOfInterest$exposureName)
-                    ),
-                    shiny::selectInput(
-                      inputId = ns("comparator"), 
-                      label = "Comparator", 
-                      choices = unique(exposureOfInterest$exposureName), 
-                      selected = unique(exposureOfInterest$exposureName)[2]
-                    ),
-                    shiny::selectInput(
-                      inputId = ns("outcome"), 
-                      label = "Outcome", 
-                      choices = unique(outcomeOfInterest$outcomeName)
-                    ),
-                    shiny::checkboxGroupInput(
-                      inputId = ns("database"), 
-                      label = "Data source", 
-                      choices = database$databaseId, 
-                      selected = database$databaseId
-                    ),
-                    shiny::checkboxGroupInput(
-                      inputId = ns("analysis"), 
-                      label = "Analysis", 
-                      choices = cohortMethodAnalysis$description,  
-                      selected = cohortMethodAnalysis$description
-                    )
-      ),
-      
-      shiny::column(9,
-                    DT::dataTableOutput(ns("mainTable")),
-                    
-                    shiny::conditionalPanel(
-                      ns = ns,
-                      "output.rowIsSelected == true",
-                      
-                      shiny::tabsetPanel(
-                        id = "detailsTabsetPanel",
-                        
-                        shiny::tabPanel(
-                          "Power",
-                          shiny::uiOutput(ns("powerTableCaption")),
-                          shiny::tableOutput(ns("powerTable")),
-                          shiny::uiOutput(ns("timeAtRiskTableCaption")),
-                          shiny::tableOutput(ns("timeAtRiskTable"))
-                          
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Attrition",
-                          shiny::plotOutput(
-                            ns("attritionPlot"), 
-                            width = 600, 
-                            height = 600
-                          ),
-                          shiny::uiOutput(ns("attritionPlotCaption")),
-                          shiny::div(
-                            style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                            shiny::downloadButton(
-                              ns("downloadAttritionPlotPng"), 
-                              label = "Download diagram as PNG"
-                            ),
-                            shiny::downloadButton(
-                              ns("downloadAttritionPlotPdf"), 
-                              label = "Download diagram as PDF"
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Population characteristics",
-                          shiny::uiOutput(ns("table1Caption")),
-                          DT::dataTableOutput(ns("table1Table"))
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Propensity model",
-                          shiny::div(
-                            shiny::strong("Table 3."),
-                            "Fitted propensity model, listing all coviates with non-zero coefficients. Positive coefficients indicate predictive of the target exposure."),
-                          DT::dataTableOutput(ns("propensityModelTable"))
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Propensity scores",
-                          shiny::plotOutput(ns("psDistPlot")),
-                          shiny::div(
-                            shiny::strong("Figure 2."),
-                            "Preference score distribution. The preference score is a transformation of the propensity score
+            conditionalPanel(id = ns("loadmessage"),
+                             condition = "$('html').hasClass('shiny-busy')",
+                             tags$div("Processing...")),
+            fluidRow(
+              column(width = 3,
+                     uiOutput(outputId = ns("targetWidget")),
+                     uiOutput(outputId = ns("comparatorWidget")),
+                     uiOutput(outputId = ns("outcomeWidget")),
+                     uiOutput(outputId = ns("databaseWidget")),
+                     uiOutput(outputId = ns("analysisWidget"))
+                     # selectInput(inputId = ns("target"),
+                     #             label = "Target",
+                     #             choices = unique(exposureOfInterest$exposureName)),
+                     # selectInput(inputId = ns("comparator"),
+                     #             label = "Comparator",
+                     #             choices = unique(exposureOfInterest$exposureName),
+                     #             selected = unique(exposureOfInterest$exposureName)[2]),
+                     # selectInput(inputId = ns("outcome"),
+                     #             label = "Outcome",
+                     #             choices = unique(outcomeOfInterest$outcomeName)),
+                     # checkboxGroupInput(inputId = ns("database"),
+                     #                    label = "Data source",
+                     #                    choices = database$databaseId,
+                     #                    selected = database$databaseId),
+                     # checkboxGroupInput(inputId = ns("analysis"),
+                     #                    label = "Analysis",
+                     #                    choices = cohortMethodAnalysis$description,
+                     #                    selected = cohortMethodAnalysis$description)
+              ),
+              column(width = 9,
+                     DT::dataTableOutput(outputId = ns("mainTable")),
+                     # conditionalPanel("output.rowIsSelected == true",
+                                      tabsetPanel(id = ns("detailsTabsetPanel"),
+                                                  tabPanel(title = "Power",
+                                                           uiOutput(outputId = ns("powerTableCaption")),
+                                                           tableOutput(outputId = ns("powerTable")),
+                                                           # conditionalPanel("output.isMetaAnalysis == false",
+                                                           uiOutput(outputId = ns("timeAtRiskTableCaption")),
+                                                           tableOutput(outputId = ns("timeAtRiskTable"))
+                                                           # )
+                                                  ),
+                                                  tabPanel(title = "Attrition",
+                                                           plotOutput(outputId = ns("attritionPlot"), width = 600, height = 600),
+                                                           uiOutput(outputId = ns("attritionPlotCaption")),
+                                                           div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                               downloadButton(outputId = ns("downloadAttritionPlotPng"),
+                                                                              label = "Download diagram as PNG"),
+                                                               downloadButton(outputId = ns("downloadAttritionPlotPdf"),
+                                                                              label = "Download diagram as PDF"))
+                                                           ),
+                                                  tabPanel(title = "Population characteristics",
+                                                           uiOutput(outputId = ns("table1Caption")),
+                                                           dataTableOutput(outputId = ns("table1Table"))
+                                                           ),
+                                                  tabPanel(title = "Propensity model",
+                                                           div(strong("Table 3."),"Fitted propensity model, listing all coviates with non-zero coefficients. Positive coefficients indicate predictive of the target exposure."),
+                                                           dataTableOutput(outputId = ns("propensityModelTable"))
+                                                           ),
+                                                  tabPanel(title = "Propensity scores",
+                                                           plotOutput(outputId = ns("psDistPlot")),
+                                                           div(strong("Figure 2."),"Preference score distribution. The preference score is a transformation of the propensity score
                                                                                                          that adjusts for differences in the sizes of the two treatment groups. A higher overlap indicates subjects in the
                                                                                                          two groups were more similar in terms of their predicted probability of receiving one treatment over the other."),
-                          shiny::div(
-                            style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                            shiny::downloadButton(
-                              ns("downloadPsDistPlotPng"), 
-                              label = "Download plot as PNG"
-                            ),
-                            shiny::downloadButton(
-                              ns("downloadPsDistPlotPdf"), 
-                              label = "Download plot as PDF"
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Covariate balance",
-                          shiny::conditionalPanel(
-                            ns = ns,
-                            "output.isMetaAnalysis == false",
-                            shiny::uiOutput(ns("hoverInfoBalanceScatter")),
-                            shiny::plotOutput(
-                              ns("balancePlot"),
-                              hover = shiny::hoverOpts("plotHoverBalanceScatter", 
-                                                       delay = 100, 
-                                                       delayType = "debounce")
-                            ),
-                            shiny::uiOutput(ns("balancePlotCaption")),
-                            div(
-                              style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                              shiny::downloadButton(
-                                ns("downloadBalancePlotPng"), 
-                                label = "Download plot as PNG"
-                              ),
-                              shiny::downloadButton(
-                                ns("downloadBalancePlotPdf"), 
-                                label = "Download plot as PDF"
-                              )
-                            )
-                          ),
-                          shiny::conditionalPanel(
-                            ns = ns,
-                            "output.isMetaAnalysis == true",
-                            shiny::plotOutput(ns("balanceSummaryPlot")),
-                            shiny::uiOutput(ns("balanceSummaryPlotCaption")),
-                            shiny::div(
-                              style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                              shiny::downloadButton(
-                                ns("downloadBalanceSummaryPlotPng"), 
-                                label = "Download plot as PNG"
-                              ),
-                              shiny::downloadButton(
-                                ns("downloadBalanceSummaryPlotPdf"), 
-                                label = "Download plot as PDF"
-                              )
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Systematic error",
-                          shiny::plotOutput(ns("systematicErrorPlot")),
-                          shiny::div(
-                            shiny::strong("Figure 4."),
-                            "Systematic error. Effect size estimates for the negative controls (true hazard ratio = 1)
+                                                           div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                               downloadButton(outputId = ns("downloadPsDistPlotPng"),
+                                                                              label = "Download plot as PNG"),
+                                                               downloadButton(outputId = ns("downloadPsDistPlotPdf"),
+                                                                              label = "Download plot as PDF"))
+                                                           ),
+                                                  tabPanel(title = "Covariate balance",
+                                                           conditionalPanel(condition = "output.isMetaAnalysis == false",
+                                                                            uiOutput(outputId = ns("hoverInfoBalanceScatter")),
+                                                                            plotOutput(outputId = ns("balancePlot"),
+                                                                                       hover = hoverOpts(id = ns("plotHoverBalanceScatter"), delay = 100, delayType = "debounce")),
+                                                                            uiOutput(outputId = ns("balancePlotCaption")),
+                                                                            div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                                                downloadButton(outputId = ns("downloadBalancePlotPng"),
+                                                                                               label = "Download plot as PNG"),
+                                                                                downloadButton(outputId = ns("downloadBalancePlotPdf"),
+                                                                                               label = "Download plot as PDF")
+                                                                            )),
+                                                           conditionalPanel(condition = "output.isMetaAnalysis == true",
+                                                                            plotOutput(outputId = ns("balanceSummaryPlot")),
+                                                                            uiOutput(outputId = ns("balanceSummaryPlotCaption")),
+                                                                            div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                                                downloadButton(outputId = ns("downloadBalanceSummaryPlotPng"),
+                                                                                               label = "Download plot as PNG"),
+                                                                                downloadButton(outputId = ns("downloadBalanceSummaryPlotPdf"),
+                                                                                               label = "Download plot as PDF")
+                                                                            ))
+                                                  ),
+                                                  tabPanel(title = "Systematic error",
+                                                           plotOutput(outputId = ns("systematicErrorPlot")),
+                                                           div(strong("Figure 4."),"Systematic error. Effect size estimates for the negative controls (true hazard ratio = 1)
                                                                                     and positive controls (true hazard ratio > 1), before and after calibration. Estimates below the diagonal dashed
                                                                                     lines are statistically significant (alpha = 0.05) different from the true effect size. A well-calibrated
                                                                                     estimator should have the true effect size within the 95 percent confidence interval 95 percent of times."),
-                          shiny::div(
-                            style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                            shiny::downloadButton(
-                              ns("downloadSystematicErrorPlotPng"), 
-                              label = "Download plot as PNG"
-                            ),
-                            shiny::downloadButton(
-                              ns("downloadSystematicErrorPlotPdf"), 
-                              label = "Download plot as PDF"
-                            )
-                          ),
-                          shiny::conditionalPanel(
-                            ns = ns,
-                            "output.isMetaAnalysis == true",
-                            shiny::plotOutput(ns("systematicErrorSummaryPlot")),
-                            shiny::div(
-                              shiny::strong("Figure 8."),
-                              "Fitted null distributions per data source."),
-                            shiny::div(
-                              style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                              shiny::downloadButton(
-                                ns("downloadSystematicErrorSummaryPlotPng"), 
-                                label = "Download plot as PNG"
-                              ),
-                              shiny::downloadButton(
-                                ns("downloadSystematicErrorSummaryPlotPdf"), 
-                                label = "Download plot as PDF"
-                              )
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Forest plot",
-                          shiny::plotOutput(ns("forestPlot")),
-                          shiny::uiOutput(ns("forestPlotCaption")),
-                          shiny::div(
-                            style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                            shiny::downloadButton(
-                              ns("downloadForestPlotPng"), 
-                              label = "Download plot as PNG"
-                            ),
-                            shiny::downloadButton(
-                              ns("downloadForestPlotPdf"), 
-                              label = "Download plot as PDF"
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Kaplan-Meier",
-                          shiny::plotOutput(
-                            ns("kaplanMeierPlot"), 
-                            height = 550
-                          ),
-                          shiny::uiOutput(ns("kaplanMeierPlotPlotCaption")),
-                          shiny::div(
-                            style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
-                            shiny::downloadButton(
-                              ns("downloadKaplanMeierPlotPng"), 
-                              label = "Download plot as PNG"
-                            ),
-                            shiny::downloadButton(
-                              ns("downloadKaplanMeierPlotPdf"), 
-                              label = "Download plot as PDF"
-                            )
-                          )
-                        ),
-                        
-                        shiny::tabPanel(
-                          "Subgroups",
-                          shiny::uiOutput(ns("subgroupTableCaption")),
-                          DT::dataTableOutput(ns("subgroupTable"))
-                        )
-                        
-                      ) # end tabsetPanel
-                      
-                    ) # conditional panel
-      ) # end column
-      
-    ) # end fluid row
-  )# end fluid page
+                                                           div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                               downloadButton(outputId = ns("downloadSystematicErrorPlotPng"),
+                                                                              label = "Download plot as PNG"),
+                                                               downloadButton(outputId = ns("downloadSystematicErrorPlotPdf"),
+                                                                              label = "Download plot as PDF")
+                                                           ),
+                                                           conditionalPanel(condition = "output.isMetaAnalysis == true",
+                                                                            plotOutput(outputId = ns("systematicErrorSummaryPlot")),
+                                                                            div(strong("Figure 8."),"Fitted null distributions per data source."),
+                                                                            div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                                                downloadButton(outputId = ns("downloadSystematicErrorSummaryPlotPng"),
+                                                                                               label = "Download plot as PNG"),
+                                                                                downloadButton(outputId = ns("downloadSystematicErrorSummaryPlotPdf"),
+                                                                                               label = "Download plot as PDF")))
+                                                           ),
+                                                  tabPanel(title = "Forest plot",
+                                                           plotOutput(outputId = ns("forestPlot")),
+                                                           uiOutput(outputId = ns("forestPlotCaption")),
+                                                           div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                               downloadButton(outputId = ns("downloadForestPlotPng"),
+                                                                              label = "Download plot as PNG"),
+                                                               downloadButton(outputId = ns("downloadForestPlotPdf"),
+                                                                              label = "Download plot as PDF"))
+                                                           ),
+                                                  tabPanel(title = "Kaplan-Meier",
+                                                           plotOutput(outputId = ns("kaplanMeierPlot"), height = 550),
+                                                           uiOutput(outputId = ns("kaplanMeierPlotPlotCaption")),
+                                                           div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                                                               downloadButton(outputId = ns("downloadKaplanMeierPlotPng"),
+                                                                              label = "Download plot as PNG"),
+                                                               downloadButton(outputId = ns("downloadKaplanMeierPlotPdf"),
+                                                                              label = "Download plot as PDF"))
+                                                           ),
+                                                  tabPanel(title = "Subgroups",
+                                                           uiOutput(outputId = ns("subgroupTableCaption")),
+                                                           dataTableOutput(outputId = ns("subgroupTable")))
+
+                                      )
+                     # )
+              )
+              
+            )
+  )
   
 }
 
-estimationServer <- function(
-  id, 
-  resultDatabaseSettings = list(),
-  blind = T
-) {
+
+estimationServerTest <- function(id,
+                             dataFolder,
+                             blind = TRUE) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
-      
+      data <- reactive(mtcars[[input$var]])
+      output$hist <- renderPlot({
+        hist(data(), breaks = input$bins, main = input$var)
+      }, res = 96)
     }
   )
 }
-
-estimationServer2 <- function(
-  id, 
-  resultDatabaseSettings = list(),
-  blind = T
-  ) {
+estimationServer <- function(id,
+                             dataFolder,
+                             resultDatabaseSettings = list(),
+                             blind = FALSE) {
+  
+  
   shiny::moduleServer(
     id,
     function(input, output, session) {
       
-      connection <- NULL # add creation 
+      assign("dataFolder", dataFolder, envir = .GlobalEnv)
       
-      cohortMethodResult <- list() # add function to get from database
-      cmInteractionResult <- list() # add function to get from database
+      connection <- NULL # add creation
+      
+      print("pre-load data")
+      loadData(dataFolder)
+      
+      
+      mainColumns <- c("description",
+                       "databaseId",
+                       "rr",
+                       "ci95Lb",
+                       "ci95Ub",
+                       "p",
+                       "calibratedRr",
+                       "calibratedCi95Lb",
+                       "calibratedCi95Ub",
+                       "calibratedP")
+      
+      mainColumnNames <- c("<span title=\"Analysis\">Analysis</span>",
+                           "<span title=\"Data source\">Data source</span>",
+                           "<span title=\"Hazard ratio (uncalibrated)\">HR</span>",
+                           "<span title=\"Lower bound of the 95 percent confidence interval (uncalibrated)\">LB</span>",
+                           "<span title=\"Upper bound of the 95 percent confidence interval (uncalibrated)\">UB</span>",
+                           "<span title=\"Two-sided p-value (uncalibrated)\">P</span>",
+                           "<span title=\"Hazard ratio (calibrated)\">Cal.HR</span>",
+                           "<span title=\"Lower bound of the 95 percent confidence interval (calibrated)\">Cal.LB</span>",
+                           "<span title=\"Upper bound of the 95 percent confidence interval (calibrated)\">Cal.UB</span>",
+                           "<span title=\"Two-sided p-value (calibrated)\">Cal.P</span>")
+      
+      output$targetWidget <- shiny::renderUI({
+        print(exposureOfInterest$exposureName)
+        selectInput(inputId = session$ns("target"),
+                    label = "Target",
+                    choices = unique(exposureOfInterest$exposureName))
+      })
+
+      output$comparatorWidget <- shiny::renderUI({
+        selectInput(inputId = session$ns("comparator"),
+                  label = "Comparator",
+                  choices = unique(exposureOfInterest$exposureName),
+                  selected = unique(exposureOfInterest$exposureName)[2])
+      })
+      
+      output$outcomeWidget <- shiny::renderUI({
+        selectInput(inputId = session$ns("outcome"),
+                  label = "Outcome",
+                  choices = unique(outcomeOfInterest$outcomeName))
+      })
+      output$databaseWidget<- shiny::renderUI({
+        checkboxGroupInput(inputId = session$ns("database"),
+                         label = "Data source",
+                         choices = database$databaseId,
+                         selected = database$databaseId)
+      })
+      output$analysisWidget <- shiny::renderUI({
+        checkboxGroupInput(inputId = session$ns("analysis"),
+                         label = "Analysis",
+                         choices = cohortMethodAnalysis$description,
+                         selected = cohortMethodAnalysis$description)
+      })
       
       if (blind) {
         shiny::hideTab(inputId = "detailsTabsetPanel", target = "Kaplan-Meier")
@@ -332,17 +286,18 @@ estimationServer2 <- function(
       if (!exists("cmInteractionResult")) {
         shiny::hideTab(inputId = "detailsTabsetPanel", target = "Subgroups")
       }
-      
-      shiny::observe({
-        targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
-        comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-        tcoSubset <- tcos[tcos$targetId == targetId & tcos$comparatorId == comparatorId, ]
-        outcomes <- outcomeOfInterest$outcomeName[outcomeOfInterest$outcomeId %in% tcoSubset$outcomeId]
-        shiny::updateSelectInput(session = session,
-                                 inputId = "outcome",
-                                 choices = unique(outcomes))
-      })
-      
+
+      # shiny::observe({
+      #   print(input$target)
+      #   targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
+      #   comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
+      #   tcoSubset <- tcos[tcos$targetId == targetId & tcos$comparatorId == comparatorId, ]
+      #   outcomes <- outcomeOfInterest$outcomeName[outcomeOfInterest$outcomeId %in% tcoSubset$outcomeId]
+      #   shiny::updateSelectInput(session = session,
+      #                            inputId = "outcome",
+      #                            choices = unique(outcomes))
+      # })
+     #  
       resultSubset <- reactive({
         targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
         comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
@@ -378,7 +333,7 @@ estimationServer2 <- function(
         }
         return(results)
       })
-      
+
       selectedRow <- shiny::reactive({
         idx <- input$mainTable_rows_selected
         if (is.null(idx)) {
@@ -393,12 +348,12 @@ estimationServer2 <- function(
           return(row)
         }
       })
-      
+
       output$rowIsSelected <- shiny::reactive({
         return(!is.null(selectedRow()))
       })
       outputOptions(output, "rowIsSelected", suspendWhenHidden = FALSE)
-      
+
       balance <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -416,7 +371,7 @@ estimationServer2 <- function(
           return(balance)
         }
       })
-      
+
       output$isMetaAnalysis <- shiny::reactive({
         row <- selectedRow()
         isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
@@ -438,7 +393,7 @@ estimationServer2 <- function(
         return(isMetaAnalysis)
       })
       shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
-      
+
       output$mainTable <- DT::renderDataTable({
         table <- resultSubset()
         if (is.null(table) || nrow(table) == 0) {
@@ -469,7 +424,7 @@ estimationServer2 <- function(
                                class = "stripe nowrap compact")
         return(table)
       })
-      
+
       output$powerTableCaption <- shiny::renderUI({
         row <- selectedRow()
         if (!is.null(row)) {
@@ -482,7 +437,7 @@ estimationServer2 <- function(
           return(NULL)
         }
       })
-      
+
       output$powerTable <- shiny::renderTable({
         row <- selectedRow()
         if (is.null(row)) {
@@ -503,7 +458,7 @@ estimationServer2 <- function(
               table$comparatorIr   <- NA
             }
             table$databaseId[table$databaseId %in% metaAnalysisDbIds] <- "Summary"
-            colnames(table) <- c("Source", 
+            colnames(table) <- c("Source",
                                  "Target subjects",
                                  "Comparator subjects",
                                  "Target years",
@@ -536,7 +491,7 @@ estimationServer2 <- function(
           return(table)
         }
       })
-      
+
       output$timeAtRiskTableCaption <- shiny::renderUI({
         row <- selectedRow()
         if (!is.null(row)) {
@@ -548,7 +503,7 @@ estimationServer2 <- function(
           return(NULL)
         }
       })
-      
+
       output$timeAtRiskTable <- shiny::renderTable({
         row <- selectedRow()
         if (is.null(row)) {
@@ -575,7 +530,7 @@ estimationServer2 <- function(
           return(table)
         }
       })
-      
+
       attritionPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -594,23 +549,23 @@ estimationServer2 <- function(
           return(plot)
         }
       })
-      
+
       output$attritionPlot <- shiny::renderPlot({
         return(attritionPlot())
       })
-      
-      output$downloadAttritionPlotPng <- shiny::downloadHandler(filename = "Attrition.png", 
-                                                                contentType = "image/png", 
+
+      output$downloadAttritionPlotPng <- shiny::downloadHandler(filename = "Attrition.png",
+                                                                contentType = "image/png",
                                                                 content = function(file) {
                                                                   ggplot2::ggsave(file, plot = attritionPlot(), width = 6, height = 7, dpi = 400)
                                                                 })
-      
-      output$downloadAttritionPlotPdf <- shiny::downloadHandler(filename = "Attrition.pdf", 
-                                                                contentType = "application/pdf", 
+
+      output$downloadAttritionPlotPdf <- shiny::downloadHandler(filename = "Attrition.pdf",
+                                                                contentType = "application/pdf",
                                                                 content = function(file) {
                                                                   ggplot2::ggsave(file = file, plot = attritionPlot(), width = 6, height = 7)
                                                                 })
-      
+
       output$attritionPlotCaption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
@@ -621,7 +576,7 @@ estimationServer2 <- function(
           return(shiny::HTML(sprintf(text, input$target, input$comparator)))
         }
       })
-      
+
       output$table1Caption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
@@ -633,7 +588,7 @@ estimationServer2 <- function(
           return(shiny::HTML(sprintf(text, input$target, input$comparator)))
         }
       })
-      
+
       output$table1Table <- DT::renderDataTable({
         row <- selectedRow()
         if (is.null(row)) {
@@ -646,7 +601,7 @@ estimationServer2 <- function(
           table1 <- prepareTable1(balance = bal,
                                   beforeLabel = paste("Before PS adjustment"),
                                   afterLabel = paste("After PS adjustment"))
-          
+
           container <- htmltools::withTags(table(
             class = 'display',
             shiny::thead(
@@ -677,7 +632,7 @@ estimationServer2 <- function(
           return(table1)
         }
       })
-      
+
       output$propensityModelTable <- DT::renderDataTable({
         row <- selectedRow()
         if (is.null(row)) {
@@ -690,7 +645,7 @@ estimationServer2 <- function(
                                       comparatorId = comparatorId,
                                       databaseId = row$databaseId,
                                       analysisId = row$analysisId)
-          
+
           table <- preparePropensityModelTable(model)
           options = list(columnDefs = list(list(className = 'dt-right',  targets = 0)),
                          pageLength = 15,
@@ -708,7 +663,7 @@ estimationServer2 <- function(
           return(table)
         }
       })
-      
+
       psDistPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -733,23 +688,23 @@ estimationServer2 <- function(
           return(plot)
         }
       })
-      
+
       output$psDistPlot <- shiny::renderPlot({
         return(psDistPlot())
       })
-      
-      output$downloadPsDistPlotPng <- shiny::downloadHandler(filename = "Ps.png", 
-                                                             contentType = "image/png", 
+
+      output$downloadPsDistPlotPng <- shiny::downloadHandler(filename = "Ps.png",
+                                                             contentType = "image/png",
                                                              content = function(file) {
                                                                ggplot2::ggsave(file, plot = psDistPlot(), width = 5, height = 3.5, dpi = 400)
                                                              })
-      
-      output$downloadPsDistPlotPdf <- shiny::downloadHandler(filename = "Ps.pdf", 
-                                                             contentType = "application/pdf", 
+
+      output$downloadPsDistPlotPdf <- shiny::downloadHandler(filename = "Ps.pdf",
+                                                             contentType = "application/pdf",
                                                              content = function(file) {
                                                                ggplot2::ggsave(file = file, plot = psDistPlot(), width = 5, height = 3.5)
                                                              })
-      
+
       balancePlot <- shiny::reactive({
         bal <- balance()
         if (is.null(bal) || nrow(bal) == 0) {
@@ -762,23 +717,23 @@ estimationServer2 <- function(
           return(plot)
         }
       })
-      
+
       output$balancePlot <- shiny::renderPlot({
         return(balancePlot())
       })
-      
-      output$downloadBalancePlotPng <- shiny::downloadHandler(filename = "Balance.png", 
-                                                              contentType = "image/png", 
+
+      output$downloadBalancePlotPng <- shiny::downloadHandler(filename = "Balance.png",
+                                                              contentType = "image/png",
                                                               content = function(file) {
                                                                 ggplot2::ggsave(file, plot = balancePlot(), width = 4, height = 4, dpi = 400)
                                                               })
-      
-      output$downloadBalancePlotPdf <- shiny::downloadHandler(filename = "Balance.pdf", 
-                                                              contentType = "application/pdf", 
+
+      output$downloadBalancePlotPdf <- shiny::downloadHandler(filename = "Balance.pdf",
+                                                              contentType = "application/pdf",
                                                               content = function(file) {
                                                                 ggplot2::ggsave(file = file, plot = balancePlot(), width = 4, height = 4)
                                                               })
-      
+
       output$balancePlotCaption <- shiny::renderUI({
         bal <- balance()
         if (is.null(bal) || nrow(bal) == 0) {
@@ -791,7 +746,7 @@ estimationServer2 <- function(
           return(shiny::HTML(sprintf(text)))
         }
       })
-      
+
       output$hoverInfoBalanceScatter <- shiny::renderUI({
         bal <- balance()
         if (is.null(bal) || nrow(bal) == 0) {
@@ -826,7 +781,7 @@ estimationServer2 <- function(
           )
         }
       })
-      
+
       balanceSummaryPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
@@ -841,15 +796,15 @@ estimationServer2 <- function(
           plot <- plotCovariateBalanceSummary(balanceSummary,
                                               threshold = 0.1,
                                               beforeLabel = paste("Before", row$psStrategy),
-                                              afterLabel = paste("After", row$psStrategy)) 
+                                              afterLabel = paste("After", row$psStrategy))
           return(plot)
         }
       })
-      
+
       output$balanceSummaryPlot <- shiny::renderPlot({
         balanceSummaryPlot()
       }, res = 100)
-      
+
       output$balanceSummaryPlotCaption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
@@ -857,25 +812,25 @@ estimationServer2 <- function(
         } else {
           text <- "<strong>Figure 7.</strong> Covariate balance before and after %s. The y axis represents
       the standardized difference of mean before and after %s on the propensity
-      score. The whiskers show the minimum and maximum values across covariates. The box represents the 
+      score. The whiskers show the minimum and maximum values across covariates. The box represents the
       interquartile range, and the middle line represents the median. The dashed lines indicate a standardized
       difference of 0.1."
           return(shiny::HTML(sprintf(text, row$psStrategy, row$psStrategy)))
         }
       })
-      
-      output$downloadBalanceSummaryPlotPng <- shiny::downloadHandler(filename = "BalanceSummary.png", 
-                                                                     contentType = "image/png", 
+
+      output$downloadBalanceSummaryPlotPng <- shiny::downloadHandler(filename = "BalanceSummary.png",
+                                                                     contentType = "image/png",
                                                                      content = function(file) {
                                                                        ggplot2::ggsave(file, plot = balanceSummaryPlot(), width = 12, height = 5.5, dpi = 400)
                                                                      })
-      
-      output$downloadBalanceSummaryPlotPdf <- shiny::downloadHandler(filename = "BalanceSummary.pdf", 
-                                                                     contentType = "application/pdf", 
+
+      output$downloadBalanceSummaryPlotPdf <- shiny::downloadHandler(filename = "BalanceSummary.pdf",
+                                                                     contentType = "application/pdf",
                                                                      content = function(file) {
                                                                        ggplot2::ggsave(file = file, plot = balanceSummaryPlot(), width = 12, height = 5.5)
                                                                      })
-      
+
       systematicErrorPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -883,33 +838,34 @@ estimationServer2 <- function(
         } else {
           targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
           comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-          controlResults <- getControlResults(connection = connection,
+          controlResults <- getControlResults(cohortMethodResult,
+                                              connection = connection,
                                               targetId = targetId,
                                               comparatorId = comparatorId,
                                               analysisId = row$analysisId,
                                               databaseId = row$databaseId)
-          
+
           plot <- plotScatter(controlResults)
           return(plot)
         }
       })
-      
+
       output$systematicErrorPlot <- shiny::renderPlot({
         return(systematicErrorPlot())
       })
-      
-      output$downloadSystematicErrorPlotPng <- shiny::downloadHandler(filename = "SystematicError.png", 
-                                                                      contentType = "image/png", 
+
+      output$downloadSystematicErrorPlotPng <- shiny::downloadHandler(filename = "SystematicError.png",
+                                                                      contentType = "image/png",
                                                                       content = function(file) {
                                                                         ggplot2::ggsave(file, plot = systematicErrorPlot(), width = 12, height = 5.5, dpi = 400)
                                                                       })
-      
-      output$downloadSystematicErrorPlotPdf <- shiny::downloadHandler(filename = "SystematicError.pdf", 
-                                                                      contentType = "application/pdf", 
+
+      output$downloadSystematicErrorPlotPdf <- shiny::downloadHandler(filename = "SystematicError.pdf",
+                                                                      contentType = "application/pdf",
                                                                       content = function(file) {
                                                                         ggplot2::ggsave(file = file, plot = systematicErrorPlot(), width = 12, height = 5.5)
                                                                       })
-      
+
       systematicErrorSummaryPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
@@ -921,28 +877,28 @@ estimationServer2 <- function(
                                                           analysisId =  row$analysisId)
           if (is.null(negativeControls))
             return(NULL)
-          
-          plot <- plotEmpiricalNulls(negativeControls) 
+
+          plot <- plotEmpiricalNulls(negativeControls)
           return(plot)
         }
       })
-      
+
       output$systematicErrorSummaryPlot <- shiny::renderPlot({
         return(systematicErrorSummaryPlot())
       }, res = 100)
-      
-      output$downloadSystematicErrorSummaryPlotPng <- shiny::downloadHandler(filename = "SystematicErrorSummary.png", 
-                                                                             contentType = "image/png", 
+
+      output$downloadSystematicErrorSummaryPlotPng <- shiny::downloadHandler(filename = "SystematicErrorSummary.png",
+                                                                             contentType = "image/png",
                                                                              content = function(file) {
                                                                                ggplot2::ggsave(file, plot = systematicErrorSummaryPlot(), width = 12, height = 5.5, dpi = 400)
                                                                              })
-      
-      output$downloadSystematicErrorSummaryPlotPdf <- shiny::downloadHandler(filename = "SystematicErrorSummary.pdf", 
-                                                                             contentType = "application/pdf", 
+
+      output$downloadSystematicErrorSummaryPlotPdf <- shiny::downloadHandler(filename = "SystematicErrorSummary.pdf",
+                                                                             contentType = "application/pdf",
                                                                              content = function(file) {
                                                                                ggplot2::ggsave(file = file, plot = systematicErrorSummaryPlot(), width = 12, height = 5.5)
                                                                              })
-      
+
       kaplanMeierPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -963,23 +919,23 @@ estimationServer2 <- function(
           return(plot)
         }
       })
-      
+
       output$kaplanMeierPlot <- shiny::renderPlot({
         return(kaplanMeierPlot())
       }, res = 100)
-      
-      output$downloadKaplanMeierPlotPng <- shiny::downloadHandler(filename = "KaplanMeier.png", 
-                                                                  contentType = "image/png", 
+
+      output$downloadKaplanMeierPlotPng <- shiny::downloadHandler(filename = "KaplanMeier.png",
+                                                                  contentType = "image/png",
                                                                   content = function(file) {
                                                                     ggplot2::ggsave(file, plot = kaplanMeierPlot(), width = 7, height = 5, dpi = 400)
                                                                   })
-      
-      output$downloadKaplanMeierPlotPdf <- shiny::downloadHandler(filename = "KaplanMeier.pdf", 
-                                                                  contentType = "application/pdf", 
+
+      output$downloadKaplanMeierPlotPdf <- shiny::downloadHandler(filename = "KaplanMeier.pdf",
+                                                                  contentType = "application/pdf",
                                                                   content = function(file) {
                                                                     ggplot2::ggsave(file = file, plot = kaplanMeierPlot(), width = 7, height = 5)
                                                                   })
-      
+
       output$kaplanMeierPlotPlotCaption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
@@ -993,8 +949,8 @@ estimationServer2 <- function(
           return(shiny::HTML(sprintf(text, input$target, input$comparator)))
         }
       })
-      
-      
+
+
       forestPlot <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
@@ -1009,35 +965,35 @@ estimationServer2 <- function(
           return(plot)
         }
       })
-      
+
       output$forestPlot <- shiny::renderPlot({
         forestPlot()
       })
-      
+
       output$forestPlotCaption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
           return(NULL)
         } else {
           text <- "<strong>Figure 6.</strong> Forest plot showing the per-database and summary hazard ratios (and 95 percent confidence
-      intervals) comparing %s to %s for the outcome of %s, using %s. Estimates are shown both before and after empirical 
+      intervals) comparing %s to %s for the outcome of %s, using %s. Estimates are shown both before and after empirical
       calibration. The I2 is computed on the uncalibrated estimates."
           return(shiny::HTML(sprintf(text, input$target, input$comparator, input$outcome, row$psStrategy)))
         }
       })
-      
-      output$downloadForestPlotPng <- shiny::downloadHandler(filename = "ForestPlot.png", 
-                                                             contentType = "image/png", 
+
+      output$downloadForestPlotPng <- shiny::downloadHandler(filename = "ForestPlot.png",
+                                                             contentType = "image/png",
                                                              content = function(file) {
                                                                ggplot2::ggsave(file, plot = forestPlot(), width = 12, height = 9, dpi = 400)
                                                              })
-      
-      output$downloadForestPlotPdf <- shiny::downloadHandler(filename = "ForestPlot.pdf", 
-                                                             contentType = "application/pdf", 
+
+      output$downloadForestPlotPdf <- shiny::downloadHandler(filename = "ForestPlot.pdf",
+                                                             contentType = "application/pdf",
                                                              content = function(file) {
                                                                ggplot2::ggsave(file = file, plot = forestPlot(), width = 12, height = 9)
                                                              })
-      
+
       interactionEffects <- shiny::reactive({
         row <- selectedRow()
         if (is.null(row)) {
@@ -1068,7 +1024,7 @@ estimationServer2 <- function(
           }
         }
       })
-      
+
       output$subgroupTableCaption <- shiny::renderUI({
         row <- selectedRow()
         if (is.null(row)) {
@@ -1081,7 +1037,7 @@ estimationServer2 <- function(
           return(shiny::HTML(sprintf(text, input$target, input$comparator)))
         }
       })
-      
+
       output$subgroupTable <- DT::renderDataTable({
         row <- selectedRow()
         if (is.null(row)) {

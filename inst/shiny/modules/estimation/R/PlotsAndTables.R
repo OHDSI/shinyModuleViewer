@@ -235,6 +235,7 @@ prepareTable1 <- function(balance,
   } else {
     space <- "&nbsp;"
   }
+  print(getwd())
   specifications <- read.csv(pathToCsv, stringsAsFactors = FALSE)
 
   fixCase <- function(label) {
