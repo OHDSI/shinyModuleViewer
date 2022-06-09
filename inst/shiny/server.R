@@ -54,12 +54,19 @@ server <- shiny::shinyServer(function(input, output, session) {
           icon = shiny::icon("question")
         ), 
         "EstimationInfo"
+      ),
+      addInfo(
+        shinydashboard::menuItem(
+          text = "Cohort Generator", 
+          tabName = "CohortGenerator", 
+          icon = shiny::icon("question")
+        ), 
+        "CohortGeneratorInfo"
       )
       
-
     )
   )
-
+  
   #=============
   # Helper
   #=============
@@ -85,13 +92,15 @@ server <- shiny::shinyServer(function(input, output, session) {
   runServer <- shiny::reactiveValues(
     Prediction = 0,
     PredictionDiagnostic = 0,
-    Estimation = 0
+    Estimation = 0,
+    CohortGenerator = 0
   )
+  
   
   shiny::observeEvent(input$menu,{
     
-    runServer[[input$menu]] <- runServer[[input$menu]] +1
-
+    runServer[[input$menu]] <- runServer[[input$menu]] + 1
+    
     if(input$menu == 'Prediction' & runServer[['Prediction']]==1){ 
       predictionServer(
         id = 'prediction', 
@@ -99,9 +108,9 @@ server <- shiny::shinyServer(function(input, output, session) {
           keyring::key_get(
             "resultDatabaseSettings", 
             "lungcancer"
-            )
           )
         )
+      )
     }
     
     if(input$menu == 'PredictionDiagnostic' & runServer[['PredictionDiagnostic']]==1){
@@ -117,9 +126,16 @@ server <- shiny::shinyServer(function(input, output, session) {
     }
     
     if(input$menu == 'Estimation' & runServer[['Estimation']]==1){
-      estimationServer(
-        id = 'estimation'
+      estimationServer(id = 'estimation')
+    }
+    
+    if(input$menu == 'CohortGenerator' & runServer[['CohortGenerator']]==1){
+      cohortGeneratorServer(
+        id = 'cohortGenerator',
+        generationConnectionDetails = jsonlite::fromJSON(
+          keyring::key_get("generationConnectionDetails")
         )
+      )
     }
     
     
@@ -127,9 +143,9 @@ server <- shiny::shinyServer(function(input, output, session) {
   )
   
   
-
-            
-
+  
+  
+  
 }
 )
 
@@ -156,4 +172,3 @@ showInfoBox <- function(title, htmlFileName) {
     shiny::HTML(readChar(htmlFileName, file.info(htmlFileName)$size) )
   ))
 }
-  

@@ -19,6 +19,7 @@
 source("modules/estimation/module.R")
 source("modules/prediction/module.R")
 source("modules/predictionDiagnostic/module.R")
+source("modules/cohortgenerator/module.R")
 source("modules/data/module.R")
 source("modules/about/module.R")
 
@@ -34,7 +35,7 @@ ui <- shinydashboard::dashboardPage(
           title = "OHDSI", 
           height = "40px", 
           width = "40px"
-          ),
+        ),
         style = "padding-top:0px; padding-bottom:0px;"
       ),
       class = "dropdown"
@@ -71,14 +72,19 @@ ui <- shinydashboard::dashboardPage(
       
       shinydashboard::tabItem(
         tabName = "Estimation",
-        estimationViewer('estimation')
+        estimationViewer(id='estimation')
+      ),
+      
+      shinydashboard::tabItem(
+        tabName = "CohortGenerator",
+        cohortGeneratorViewer(id="cohortGenerator")
       )
       
       
     )
     
   )
-      
+  
   
   
 )
