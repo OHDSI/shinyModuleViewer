@@ -1,6 +1,5 @@
 
-loadData <- function(dataFolder) {
-  # #TODO: remove 
+loadEstimationData <- function(dataFolder) {
   positiveControlOutcome <- NULL
   
   splittableTables <- c("covariate_balance", "preference_score_dist", "kaplan_meier_dist")

@@ -1,0 +1,121 @@
+
+
+
+systematicErrorViewer <- function(id) {
+  ns <- shiny::NS(id)
+  
+  shiny::div(
+    plotOutput(outputId = ns("systematicErrorPlot")),
+    div(strong("Figure 4."),"Systematic error. Effect size estimates for the negative controls (true hazard ratio = 1)
+                                                                                    and positive controls (true hazard ratio > 1), before and after calibration. Estimates below the diagonal dashed
+                                                                                    lines are statistically significant (alpha = 0.05) different from the true effect size. A well-calibrated
+                                                                                    estimator should have the true effect size within the 95 percent confidence interval 95 percent of times."),
+    div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+        downloadButton(outputId = ns("downloadSystematicErrorPlotPng"),
+                       label = "Download plot as PNG"),
+        downloadButton(outputId = ns("downloadSystematicErrorPlotPdf"),
+                       label = "Download plot as PDF")
+    ),
+    conditionalPanel(condition = "output.isMetaAnalysis == true",
+                     ns = ns,
+                     plotOutput(outputId = ns("systematicErrorSummaryPlot")),
+                     div(strong("Figure 8."),"Fitted null distributions per data source."),
+                     div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                         downloadButton(outputId = ns("downloadSystematicErrorSummaryPlotPng"),
+                                        label = "Download plot as PNG"),
+                         downloadButton(outputId = ns("downloadSystematicErrorSummaryPlotPdf"),
+                                        label = "Download plot as PDF")))
+  )
+}
+
+
+systematicErrorServer <- function(id, selectedRow, inputParams) {
+  assertthat::assert_that(is.reactive(selectedRow))
+  assertthat::assert_that(is.reactive(inputParams))
+  
+  shiny::moduleServer(
+    id,
+    function(input, output, session) {
+      
+      output$isMetaAnalysis <- shiny::reactive({
+        row <- selectedRow()
+        isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
+        return(isMetaAnalysis)
+      })
+      
+      shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
+      
+      
+      
+      systematicErrorPlot <- shiny::reactive({
+        row <- selectedRow()
+        if (is.null(row)) {
+          return(NULL)
+        } else {
+          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
+          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
+          controlResults <- getControlResults(cohortMethodResult,
+                                              connection = connection,
+                                              targetId = targetId,
+                                              comparatorId = comparatorId,
+                                              analysisId = row$analysisId,
+                                              databaseId = row$databaseId)
+          
+          plot <- plotScatter(controlResults)
+          return(plot)
+        }
+      })
+      
+      output$systematicErrorPlot <- shiny::renderPlot({
+        return(systematicErrorPlot())
+      })
+      
+      output$downloadSystematicErrorPlotPng <- shiny::downloadHandler(filename = "SystematicError.png",
+                                                                      contentType = "image/png",
+                                                                      content = function(file) {
+                                                                        ggplot2::ggsave(file, plot = systematicErrorPlot(), width = 12, height = 5.5, dpi = 400)
+                                                                      })
+      
+      output$downloadSystematicErrorPlotPdf <- shiny::downloadHandler(filename = "SystematicError.pdf",
+                                                                      contentType = "application/pdf",
+                                                                      content = function(file) {
+                                                                        ggplot2::ggsave(file = file, plot = systematicErrorPlot(), width = 12, height = 5.5)
+                                                                      })
+      
+      systematicErrorSummaryPlot <- shiny::reactive({
+        row <- selectedRow()
+        if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
+          return(NULL)
+        } else {
+          negativeControls <- getNegativeControlEstimates(connection = connection,
+                                                          targetId = row$targetId,
+                                                          comparatorId = row$comparatorId,
+                                                          analysisId =  row$analysisId)
+          if (is.null(negativeControls))
+            return(NULL)
+          
+          plot <- plotEmpiricalNulls(negativeControls)
+          return(plot)
+        }
+      })
+      
+      output$systematicErrorSummaryPlot <- shiny::renderPlot({
+        return(systematicErrorSummaryPlot())
+      }, res = 100)
+      
+      output$downloadSystematicErrorSummaryPlotPng <- shiny::downloadHandler(filename = "SystematicErrorSummary.png",
+                                                                             contentType = "image/png",
+                                                                             content = function(file) {
+                                                                               ggplot2::ggsave(file, plot = systematicErrorSummaryPlot(), width = 12, height = 5.5, dpi = 400)
+                                                                             })
+      
+      output$downloadSystematicErrorSummaryPlotPdf <- shiny::downloadHandler(filename = "SystematicErrorSummary.pdf",
+                                                                             contentType = "application/pdf",
+                                                                             content = function(file) {
+                                                                               ggplot2::ggsave(file = file, plot = systematicErrorSummaryPlot(), width = 12, height = 5.5)
+                                                                             })
+      
+      
+    }
+  )
+}

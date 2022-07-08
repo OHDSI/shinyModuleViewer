@@ -229,7 +229,9 @@ prepareTable1 <- function(balance,
                           percentDigits = 1,
                           stdDiffDigits = 2,
                           output = "latex",
-                          pathToCsv = "Table1Specs.csv") {
+                          pathToCsv = "modules/estimation/Table1Specs.csv") {
+  
+  print(getwd())
   if (output == "latex") {
     space <- " "
   } else {

@@ -1,0 +1,180 @@
+
+
+
+covariateBalanceViewer <- function(id) {
+   
+   ns <- shiny::NS(id)
+   
+   shiny::div(
+     conditionalPanel(condition = "output.isMetaAnalysis == false",
+                      ns = ns,
+                      uiOutput(outputId = ns("hoverInfoBalanceScatter")),
+                      plotOutput(outputId = ns("balancePlot"),
+                                 hover = hoverOpts(id = ns("plotHoverBalanceScatter"), delay = 100, delayType = "debounce")),
+                      uiOutput(outputId = ns("balancePlotCaption")),
+                      div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                          downloadButton(outputId = ns("downloadBalancePlotPng"),
+                                         label = "Download plot as PNG"),
+                          downloadButton(outputId = ns("downloadBalancePlotPdf"),
+                                         label = "Download plot as PDF"))
+     ),
+     conditionalPanel(condition = "output.isMetaAnalysis == true",
+                      ns = ns,
+                      plotOutput(outputId = ns("balanceSummaryPlot")),
+                      uiOutput(outputId = ns("balanceSummaryPlotCaption")),
+                      div(style = "display: inline-block;vertical-align: top;margin-bottom: 10px;",
+                          downloadButton(outputId = ns("downloadBalanceSummaryPlotPng"),
+                                         label = "Download plot as PNG"),
+                          downloadButton(outputId = ns("downloadBalanceSummaryPlotPdf"),
+                                         label = "Download plot as PDF")
+                      ))
+   )
+}
+
+
+
+covariateBalanceServer <- function(id, selectedRow, balance) {
+  assertthat::assert_that(is.reactive(selectedRow))
+  assertthat::assert_that(is.reactive(balance))
+  
+  shiny::moduleServer(
+    id,
+    function(input, output, session) {
+      
+      output$isMetaAnalysis <- shiny::reactive({
+        row <- selectedRow()
+        isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
+        return(isMetaAnalysis)
+      })
+      
+      shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
+      
+      balancePlot <- shiny::reactive({
+        bal <- balance()
+        if (is.null(bal) || nrow(bal) == 0) {
+          return(NULL)
+        } else {
+          row <- selectedRow()
+          plot <- plotCovariateBalanceScatterPlot(balance = bal,
+                                                  beforeLabel = "Before propensity score adjustment",
+                                                  afterLabel = "After propensity score adjustment")
+          return(plot)
+        }
+      })
+      
+      output$balancePlot <- shiny::renderPlot({
+        return(balancePlot())
+      })
+      
+      output$downloadBalancePlotPng <- shiny::downloadHandler(filename = "Balance.png",
+                                                              contentType = "image/png",
+                                                              content = function(file) {
+                                                                ggplot2::ggsave(file, plot = balancePlot(), width = 4, height = 4, dpi = 400)
+                                                              })
+      
+      output$downloadBalancePlotPdf <- shiny::downloadHandler(filename = "Balance.pdf",
+                                                              contentType = "application/pdf",
+                                                              content = function(file) {
+                                                                ggplot2::ggsave(file = file, plot = balancePlot(), width = 4, height = 4)
+                                                              })
+      
+      output$balancePlotCaption <- shiny::renderUI({
+        bal <- balance()
+        if (is.null(bal) || nrow(bal) == 0) {
+          return(NULL)
+        } else {
+          row <- selectedRow()
+          text <- "<strong>Figure 3.</strong> Covariate balance before and after propensity score adjustment. Each dot represents
+      the standardizes difference of means for a single covariate before and after propensity score adjustment on the propensity
+      score. Move the mouse arrow over a dot for more details."
+          return(shiny::HTML(sprintf(text)))
+        }
+      })
+      
+      output$hoverInfoBalanceScatter <- shiny::renderUI({
+        bal <- balance()
+        if (is.null(bal) || nrow(bal) == 0) {
+          return(NULL)
+        } else {
+          row <- selectedRow()
+          hover <- input$plotHoverBalanceScatter
+          point <- nearPoints(bal, hover, threshold = 5, maxpoints = 1, addDist = TRUE)
+          if (nrow(point) == 0) {
+            return(NULL)
+          }
+          left_pct <- (hover$x - hover$domain$left) / (hover$domain$right - hover$domain$left)
+          top_pct <- (hover$domain$top - hover$y) / (hover$domain$top - hover$domain$bottom)
+          left_px <- hover$range$left + left_pct * (hover$range$right - hover$range$left)
+          top_px <- hover$range$top + top_pct * (hover$range$bottom - hover$range$top)
+          style <- paste0("position:absolute; z-index:100; background-color: rgba(245, 245, 245, 0.85); ",
+                          "left:",
+                          left_px - 251,
+                          "px; top:",
+                          top_px - 150,
+                          "px; width:500px;")
+          beforeMatchingStdDiff <- formatC(point$beforeMatchingStdDiff, digits = 2, format = "f")
+          afterMatchingStdDiff <- formatC(point$afterMatchingStdDiff, digits = 2, format = "f")
+          shiny::div(
+            style = "position: relative; width: 0; height: 0",
+            shiny::wellPanel(
+              style = style,
+              shiny::p(shiny::HTML(paste0("<b> Covariate: </b>", point$covariateName, "<br/>",
+                                          "<b> Std. diff before ",tolower(row$psStrategy),": </b>", beforeMatchingStdDiff, "<br/>",
+                                          "<b> Std. diff after ",tolower(row$psStrategy),": </b>", afterMatchingStdDiff)))
+            )
+          )
+        }
+      })
+      
+      balanceSummaryPlot <- shiny::reactive({
+        row <- selectedRow()
+        if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
+          return(NULL)
+        } else {
+          balanceSummary <- getCovariateBalanceSummary(connection = connection,
+                                                       targetId = row$targetId,
+                                                       comparatorId = row$comparatorId,
+                                                       analysisId = row$analysisId,
+                                                       beforeLabel = paste("Before", row$psStrategy),
+                                                       afterLabel = paste("After", row$psStrategy))
+          plot <- plotCovariateBalanceSummary(balanceSummary,
+                                              threshold = 0.1,
+                                              beforeLabel = paste("Before", row$psStrategy),
+                                              afterLabel = paste("After", row$psStrategy))
+          return(plot)
+        }
+      })
+      
+      output$balanceSummaryPlot <- shiny::renderPlot({
+        balanceSummaryPlot()
+      }, res = 100)
+      
+      output$balanceSummaryPlotCaption <- shiny::renderUI({
+        row <- selectedRow()
+        if (is.null(row)) {
+          return(NULL)
+        } else {
+          text <- "<strong>Figure 7.</strong> Covariate balance before and after %s. The y axis represents
+      the standardized difference of mean before and after %s on the propensity
+      score. The whiskers show the minimum and maximum values across covariates. The box represents the
+      interquartile range, and the middle line represents the median. The dashed lines indicate a standardized
+      difference of 0.1."
+          return(shiny::HTML(sprintf(text, row$psStrategy, row$psStrategy)))
+        }
+      })
+      
+      output$downloadBalanceSummaryPlotPng <- shiny::downloadHandler(filename = "BalanceSummary.png",
+                                                                     contentType = "image/png",
+                                                                     content = function(file) {
+                                                                       ggplot2::ggsave(file, plot = balanceSummaryPlot(), width = 12, height = 5.5, dpi = 400)
+                                                                     })
+      
+      output$downloadBalanceSummaryPlotPdf <- shiny::downloadHandler(filename = "BalanceSummary.pdf",
+                                                                     contentType = "application/pdf",
+                                                                     content = function(file) {
+                                                                       ggplot2::ggsave(file = file, plot = balanceSummaryPlot(), width = 12, height = 5.5)
+                                                                     })
+      
+    }
+  )
+}

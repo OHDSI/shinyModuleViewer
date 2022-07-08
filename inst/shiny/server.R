@@ -118,8 +118,11 @@ server <- shiny::shinyServer(function(input, output, session) {
     
     if(input$menu == 'Estimation' & runServer[['Estimation']]==1){
       estimationServer(
-        id = 'estimation'
+        id = 'estimation',
+        estimationConnectionDetails = jsonlite::fromJSON(
+          keyring::key_get("estimationConnectionDetails")
         )
+      )
     }
     
     
