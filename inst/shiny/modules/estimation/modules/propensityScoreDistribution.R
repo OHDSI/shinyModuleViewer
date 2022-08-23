@@ -25,9 +25,7 @@ propensityScoreDistViewer <- function(id) {
 
 
 
-propensityScoreDistServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
+propensityScoreDistServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
@@ -38,20 +36,22 @@ propensityScoreDistServer <- function(id, selectedRow, inputParams) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          if (row$databaseId %in% metaAnalysisDbIds) {
+          if (FALSE && row$databaseId %in% metaAnalysisDbIds) {
+            #TODO: update once MA implemented
             ps <- getPs(connection = connection,
                         targetIds = row$targetId,
                         comparatorIds = row$comparatorId,
                         analysisId = row$analysisId)
           } else {
-            targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-            comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
-            outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == inputParams()$outcome]
             ps <- getPs(connection = connection,
-                        targetIds = targetId,
-                        comparatorIds = comparatorId,
+                        resultsSchema = resultsSchema,
+                        targetId = inputParams()$target,
+                        comparatorId = inputParams()$comparator,
                         analysisId = row$analysisId,
                         databaseId = row$databaseId)
+          }
+          if (nrow(ps) == 0) {
+            return(NULL) #TODO: handle more gracefully
           }
           plot <- plotPs(ps, inputParams()$target, inputParams()$comparator)
           return(plot)

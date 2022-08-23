@@ -8,10 +8,7 @@ subgroupsViewer <- function(id) {
   )
 }
 
-subgroupsServer <- function(id, selectedRow, inputParams, blind) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
-  assertthat::assert_that(!is.reactive(blind))
+subgroupsServer <- function(id, selectedRow, inputParams) {
   
   shiny::moduleServer(
     id,
@@ -34,7 +31,7 @@ subgroupsServer <- function(id, selectedRow, inputParams, blind) {
           if (nrow(subgroupResults) == 0) {
             return(NULL)
           } else {
-            if (blind) {
+            if (!row$unblind) {
               subgroupResults$rrr <- rep(NA, nrow(subgroupResults))
               subgroupResults$ci95Lb <- rep(NA, nrow(subgroupResults))
               subgroupResults$ci95Ub <- rep(NA, nrow(subgroupResults))

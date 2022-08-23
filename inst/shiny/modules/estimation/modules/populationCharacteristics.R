@@ -9,10 +9,7 @@ populationCharacteristicsViewer <- function(id) {
 }
 
 
-populationCharacteristicsServer <- function(id, selectedRow, inputParams, balance) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
-  assertthat::assert_that(is.reactive(balance))
+populationCharacteristicsServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
@@ -32,15 +29,22 @@ populationCharacteristicsServer <- function(id, selectedRow, inputParams, balanc
       })
       
       output$table1Table <- DT::renderDataTable({
+        return(NULL) #TODO: waiting fix for cm_analysis_id
         row <- selectedRow()
         if (is.null(row)) {
           return(NULL)
         } else {
-          bal <- balance()
-          if (nrow(bal) == 0) {
+          balance <- getCovariateBalance(connection = connection,
+                                         resultsSchema = resultsSchema,
+                                         targetId = inputParams()$target,
+                                         comparatorId = inputParams()$comparator,
+                                         outcomeId = inputParams()$outcome,
+                                         databaseId = row$databaseId,
+                                         analysisId = row$analysisId)
+          if (nrow(balance) == 0) {
             return(NULL)
           }
-          table1 <- prepareTable1(balance = bal,
+          table1 <- prepareTable1(balance = balance,
                                   beforeLabel = paste("Before PS adjustment"),
                                   afterLabel = paste("After PS adjustment"))
           

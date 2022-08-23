@@ -33,15 +33,27 @@ covariateBalanceViewer <- function(id) {
 
 
 
-covariateBalanceServer <- function(id, selectedRow, balance) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(balance))
+covariateBalanceServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
     function(input, output, session) {
       
+      
+      balance <- shiny::reactive({
+        row <- selectedRow()
+       balance <- getCovariateBalance(connection = connection,
+                                     resultsSchema = resultsSchema,
+                                     targetId = inputParams()$target,
+                                     comparatorId = inputParams()$comparator,
+                                     databaseId = row$databaseId,
+                                     analysisId = row$analysisId)
+         return(balance)
+      })
+      
       output$isMetaAnalysis <- shiny::reactive({
+        return(FALSE)
+        ##TODO: update once MA implemented
         row <- selectedRow()
         isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
         return(isMetaAnalysis)
@@ -50,12 +62,10 @@ covariateBalanceServer <- function(id, selectedRow, balance) {
       shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
       
       balancePlot <- shiny::reactive({
-        bal <- balance()
-        if (is.null(bal) || nrow(bal) == 0) {
+        if (is.null(balance()) || nrow(balance()) == 0) {
           return(NULL)
         } else {
-          row <- selectedRow()
-          plot <- plotCovariateBalanceScatterPlot(balance = bal,
+          plot <- plotCovariateBalanceScatterPlot(balance = balance(),
                                                   beforeLabel = "Before propensity score adjustment",
                                                   afterLabel = "After propensity score adjustment")
           return(plot)
@@ -79,8 +89,7 @@ covariateBalanceServer <- function(id, selectedRow, balance) {
                                                               })
       
       output$balancePlotCaption <- shiny::renderUI({
-        bal <- balance()
-        if (is.null(bal) || nrow(bal) == 0) {
+        if (is.null(balance()) || nrow(balance()) == 0) {
           return(NULL)
         } else {
           row <- selectedRow()
@@ -92,13 +101,12 @@ covariateBalanceServer <- function(id, selectedRow, balance) {
       })
       
       output$hoverInfoBalanceScatter <- shiny::renderUI({
-        bal <- balance()
-        if (is.null(bal) || nrow(bal) == 0) {
+        if (is.null(balance()) || nrow(balance()) == 0) {
           return(NULL)
         } else {
           row <- selectedRow()
           hover <- input$plotHoverBalanceScatter
-          point <- nearPoints(bal, hover, threshold = 5, maxpoints = 1, addDist = TRUE)
+          point <- nearPoints(balance(), hover, threshold = 5, maxpoints = 1, addDist = TRUE)
           if (nrow(point) == 0) {
             return(NULL)
           }

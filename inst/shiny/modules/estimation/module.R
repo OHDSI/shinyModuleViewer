@@ -18,6 +18,7 @@
 
 source("modules/estimation/R/DataPulls.R")
 source("modules/estimation/R/PlotsAndTables.R")
+source("modules/estimation/R/Utility.R")
 
 source("modules/estimation/modules/titlePanel.R")
 source("modules/estimation/modules/resultsTable.R")
@@ -113,70 +114,78 @@ estimationViewer <- function(id) {
 
 estimationServer <- function(id,
                              estimationConnectionDetails,
-                             blind = FALSE) {
+                             resultsSchema = "poc") {
   shiny::moduleServer(
     id,
     function(input, output, session) {
       
-      titlePanelServer("titlePanel", blind)
+      titlePanelServer("titlePanel")
       
       connection <- NULL
       dataFolder <- NULL
       if (is.null(estimationConnectionDetails$server) ||
-          (is.list(estimationConnectionDetails$server) && length(estimationConnectionDetails$server) != 0)) {
-          connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = estimationConnectionDetails$dbms,
-                                                                          user = estimationConnectionDetails$user,
-                                                                          password = estimationConnectionDetails$password,
-                                                                          server = sprintf("%s/%s", estimationConnectionDetails$server,
-                                                                                           estimationConnectionDetails$database))
+          (is.list(estimationConnectionDetails$server) && length(estimationConnectionDetails$server) == 0)) {
+          assign("dataFolder", estimationConnectionDetails$dataFolder, envir = .GlobalEnv)
           
-          
-          connection <- DatabaseConnector::connect(connectionDetails = connectionDetails)
+          loadEstimationData(estimationConnectionDetails$dataFolder)
       } else {
-        assign("dataFolder", estimationConnectionDetails$dataFolder, envir = .GlobalEnv)
+        connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = estimationConnectionDetails$dbms,
+                                                                        user = estimationConnectionDetails$user,
+                                                                        password = estimationConnectionDetails$password,
+                                                                        server = sprintf("%s/%s", estimationConnectionDetails$server,
+                                                                                         estimationConnectionDetails$database))
         
-        loadEstimationData(estimationConnectionDetails$dataFolder)
+        
+        connection <- DatabaseConnector::connect(connectionDetails = connectionDetails)
       }
       
+      
+      shiny::onStop(function() {
+        if (DBI::dbIsValid(con)) {
+          DatabaseConnector::disconnect(con)
+        }
+      })
+      
       output$targetWidget <- shiny::renderUI({
-        selectInput(inputId = session$ns("target"),
+        targets <- getTargetChoices(connection, resultsSchema)
+        shiny::selectInput(inputId = session$ns("target"),
                     label = "Target",
-                    choices = unique(exposureOfInterest$exposureName))
+                    choices = getSelectNamedChoices(targets$targetId,
+                                                    targets$cohortName))
       })
 
       output$comparatorWidget <- shiny::renderUI({
-        selectInput(inputId = session$ns("comparator"),
+        comparators <- getComparatorChoices(connection, resultsSchema)
+        shiny::selectInput(inputId = session$ns("comparator"),
                   label = "Comparator",
-                  choices = unique(exposureOfInterest$exposureName),
-                  selected = unique(exposureOfInterest$exposureName)[2])
+                  choices = getSelectNamedChoices(comparators$comparatorId,
+                                                   comparators$cohortName))
       })
       
       output$outcomeWidget <- shiny::renderUI({
-        selectInput(inputId = session$ns("outcome"),
+        outcomes <- getOutcomeChoices(connection, resultsSchema)
+        shiny::selectInput(inputId = session$ns("outcome"),
                   label = "Outcome",
-                  choices = unique(outcomeOfInterest$outcomeName))
+                  choices = getSelectNamedChoices(outcomes$outcomeId,
+                                                  outcomes$cohortName))
       })
       output$databaseWidget<- shiny::renderUI({
-        checkboxGroupInput(inputId = session$ns("database"),
+        databases <- getDatabaseChoices(connection, resultsSchema)
+        shiny::checkboxGroupInput(inputId = session$ns("database"),
                          label = "Data source",
-                         choices = database$databaseId,
-                         selected = database$databaseId)
+                         choices =  getSelectNamedChoices(databases$databaseId,
+                                                          databases$cdmSourceAbbreviation),
+                         selected = unique(databases$databaseId))
       })
       output$analysisWidget <- shiny::renderUI({
-        checkboxGroupInput(inputId = session$ns("analysis"),
+        analyses <- getCmAnalysisOptions(connection, resultsSchema)
+        shiny::checkboxGroupInput(inputId = session$ns("analysis"),
                          label = "Analysis",
-                         choices = cohortMethodAnalysis$description,
-                         selected = cohortMethodAnalysis$description)
+                         choices =  getSelectNamedChoices(analyses$analysisId,
+                                                          analyses$description),
+                         selected = unique(analyses$analysisId))
       })
       
-      if (blind) {
-        shiny::hideTab(inputId = "detailsTabsetPanel", target = "Kaplan-Meier",
-                       session = session)
-      }
-      if (!exists("cmInteractionResult")) {
-        shiny::hideTab(inputId = "detailsTabsetPanel", target = "Subgroups",
-                       session = session)
-      }
       
       inputParams <- reactive({
         t <- list()
@@ -187,110 +196,89 @@ estimationServer <- function(id,
         t$database <- input$database
         return(t)
       })
-      
+
       resultSubset <- reactive({
-        targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
-        comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-        outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-        analysisIds <- cohortMethodAnalysis$analysisId[cohortMethodAnalysis$description %in% input$analysis]
-        databaseIds <- input$database
-        if (length(analysisIds) == 0) {
-          analysisIds <- -1
-        }
-        if (length(databaseIds) == 0) {
-          databaseIds <- "none"
-        }
+        
         results <- getMainResults(connection = connection,
-                                  targetIds = targetId,
-                                  comparatorIds = comparatorId,
-                                  outcomeIds = outcomeId,
-                                  databaseIds = databaseIds,
-                                  analysisIds = analysisIds)
+                                  resultsSchema = resultsSchema,
+                                  targetIds = filterEmptyNullValues(input$target),
+                                  comparatorIds = filterEmptyNullValues(input$comparator),
+                                  outcomeIds = filterEmptyNullValues(input$outcome),
+                                  databaseIds = filterEmptyNullValues(input$database),
+                                  analysisIds = filterEmptyNullValues(input$analysis))
         results <- results[order(results$analysisId), ]
-        if (blind) {
-          results$rr <- rep(NA, nrow(results))
-          results$ci95Ub <- rep(NA, nrow(results))
-          results$ci95Lb <- rep(NA, nrow(results))
-          results$logRr <- rep(NA, nrow(results))
-          results$seLogRr <- rep(NA, nrow(results))
-          results$p <- rep(NA, nrow(results))
-          results$calibratedRr <- rep(NA, nrow(results))
-          results$calibratedCi95Ub <- rep(NA, nrow(results))
-          results$calibratedCi95Lb <- rep(NA, nrow(results))
-          results$calibratedLogRr <- rep(NA, nrow(results))
-          results$calibratedSeLogRr <- rep(NA, nrow(results))
-          results$calibratedP <- rep(NA, nrow(results))
-        }
+        
+        
+        results[which(results$unblind == 0), getColumnsToBlind(results)] <- NA
+        
         return(results)
       })
       
+
       selectedRow <- resultsTableServer("resultsTable", resultSubset)
 
-      balance <- shiny::reactive({
-        row <- selectedRow()
-        if (is.null(row)) {
-          return(NULL)
-        } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-          outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-          balance <- getCovariateBalance(connection = connection,
-                                         targetId = targetId,
-                                         comparatorId = comparatorId,
-                                         databaseId = row$databaseId,
-                                         analysisId = row$analysisId,
-                                         outcomeId = outcomeId)
-          return(balance)
-        }
-      })
-      
       output$rowIsSelected <- shiny::reactive({
         return(!is.null(selectedRow()))
       })
+      
+      
+      if (!exists("cmInteractionResult")) {
+        #TODO: update for testing once subgroup analysis completed
+        shiny::hideTab(inputId = "detailsTabsetPanel", target = "Subgroups",
+                       session = session)
+      }
+      
       outputOptions(output, "rowIsSelected", suspendWhenHidden = FALSE)
 
       output$isMetaAnalysis <- shiny::reactive({
+        #TODO: update once MA implemented
         row <- selectedRow()
-        isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
-        if (isMetaAnalysis) {
-          hideTab("detailsTabsetPanel", "Attrition", session = session)
-          hideTab("detailsTabsetPanel", "Population characteristics", session = session)
-          hideTab("detailsTabsetPanel", "Kaplan-Meier", session = session)
-          hideTab("detailsTabsetPanel", "Propensity model", session = session)
-          showTab("detailsTabsetPanel", "Forest plot", session = session)
-        } else {
-          showTab("detailsTabsetPanel", "Attrition", session = session)
-          showTab("detailsTabsetPanel", "Population characteristics", session = session)
-          if (!blind) {
-            showTab("detailsTabsetPanel", "Kaplan-Meier", session = session)
+        isMetaAnalysis <- FALSE # !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
+        if (!is.null(row)) {
+          if (isMetaAnalysis) {
+            hideTab("detailsTabsetPanel", "Attrition", session = session)
+            hideTab("detailsTabsetPanel", "Population characteristics", session = session)
+            hideTab("detailsTabsetPanel", "Kaplan-Meier", session = session)
+            hideTab("detailsTabsetPanel", "Propensity model", session = session)
+            showTab("detailsTabsetPanel", "Forest plot", session = session)
+          } else {
+            showTab("detailsTabsetPanel", "Attrition", session = session)
+            showTab("detailsTabsetPanel", "Population characteristics", session = session)
+            if (row$unblind) {
+              showTab("detailsTabsetPanel", "Kaplan-Meier", session = session)
+            } else{
+              shiny::hideTab("detailsTabsetPanel", "Kaplan-Meier", session = session)
+            }
+            showTab("detailsTabsetPanel", "Propensity model", session = session)
+            hideTab("detailsTabsetPanel", "Forest plot", session = session)
           }
-          showTab("detailsTabsetPanel", "Propensity model", session = session)
-          hideTab("detailsTabsetPanel", "Forest plot", session = session)
         }
         return(isMetaAnalysis)
       })
       shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
-      
 
-      powerServer("power", selectedRow, inputParams, blind)
-      
-      attritionServer("attrition", selectedRow, inputParams)
-      
-      populationCharacteristicsServer("popCharacteristics", selectedRow, inputParams, balance)
-      
-      propensityModelServer("propensityModel", selectedRow, inputParams)
-      
-      propensityScoreDistServer("propensityScoreDist", selectedRow, inputParams)
-      
-      covariateBalanceServer("covariateBalance", selectedRow, balance)
-      
-      systematicErrorServer("systematicError", selectedRow, inputParams)
-      
-      kaplanMeierServer("kaplanMeier", selectedRow, inputParams)
-      
-      forestPlotServer("forestPlot", selectedRow, inputParams)
-      
-      subgroupsServer("subgroups", selectedRow, inputParams, blind)
+
+      powerServer("power", selectedRow, inputParams, connection, resultsSchema)
+
+      attritionServer("attrition", selectedRow, inputParams, connection, resultsSchema)
+
+      populationCharacteristicsServer("popCharacteristics", selectedRow, inputParams, connection, resultsSchema)
+
+      propensityModelServer("propensityModel", selectedRow, inputParams, connection, resultsSchema)
+
+      propensityScoreDistServer("propensityScoreDist", selectedRow, inputParams, connection, resultsSchema)
+
+      covariateBalanceServer("covariateBalance", selectedRow, inputParams, connection, resultsSchema)
+
+      systematicErrorServer("systematicError", selectedRow, inputParams, connection, resultsSchema)
+
+      kaplanMeierServer("kaplanMeier", selectedRow, inputParams, connection, resultsSchema)
+
+      #TODO: complete once MA implemented
+      # forestPlotServer("forestPlot", selectedRow, inputParams)
+
+      #TODO: revisit once subgroup example conducted
+      subgroupsServer("subgroups", selectedRow, inputParams)
    
     }
   )

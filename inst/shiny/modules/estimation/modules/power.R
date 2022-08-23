@@ -15,14 +15,12 @@ powerViewer <- function(id) {
 
 
 
-powerServer <- function(id, selectedRow, inputParams, blind) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
-  assertthat::assert_that(!is.reactive(blind))
+powerServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
     function(input, output, session) {
+      
       
       output$powerTableCaption <- shiny::renderUI({
         row <- selectedRow()
@@ -42,15 +40,16 @@ powerServer <- function(id, selectedRow, inputParams, blind) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          if (row$databaseId %in% metaAnalysisDbIds) {
+          #TODO: update once MA implemented
+          if (FALSE && row$databaseId %in% metaAnalysisDbIds) {
             results <- getMainResults(connection = connection,
                                       targetIds = row$targetId,
                                       comparatorIds = row$comparatorId,
                                       outcomeIds = row$outcomeId,
                                       analysisIds = row$analysisId)
-            table <- preparePowerTable(results, cohortMethodAnalysis, includeDatabaseId = TRUE)
+            table <- preparePowerTable(results, connection, resultsSchema)
             table$description <- NULL
-            if (blind) {
+            if (!row$unblind) {
               table$targetOutcomes  <- NA
               table$comparatorOutcomes   <- NA
               table$targetIr   <- NA
@@ -68,10 +67,10 @@ powerServer <- function(id, selectedRow, inputParams, blind) {
                                  "Comparator IR (per 1,000 PY)",
                                  "MDRR")
           } else {
-            table <- preparePowerTable(row, cohortMethodAnalysis)
+            table <- preparePowerTable(row, connection, resultsSchema)
             table$description <- NULL
             table$databaseId <- NULL
-            if (blind) {
+            if (!row$unblind) {
               table$targetOutcomes  <- NA
               table$comparatorOutcomes   <- NA
               table$targetIr   <- NA
@@ -108,10 +107,8 @@ powerServer <- function(id, selectedRow, inputParams, blind) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
-          outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == inputParams()$outcome]
-          if (row$databaseId %in% metaAnalysisDbIds) {
+          if (FALSE && row$databaseId %in% metaAnalysisDbIds) {
+            # TODO: update when MA implemented
             followUpDist <- getCmFollowUpDist(cmFollowUpDist = cmFollowUpDist,
                                               connection = connection,
                                               targetId = targetId,
@@ -119,11 +116,11 @@ powerServer <- function(id, selectedRow, inputParams, blind) {
                                               outcomeId = outcomeId,
                                               analysisId = row$analysisId)
           } else {
-            followUpDist <- getCmFollowUpDist(cmFollowUpDist = cmFollowUpDist,
-                                              connection = connection,
-                                              targetId = targetId,
-                                              comparatorId = comparatorId,
-                                              outcomeId = outcomeId,
+            followUpDist <- getCmFollowUpDist(connection = connection,
+                                              resultsSchema,
+                                              targetId = inputParams()$target,
+                                              comparatorId = inputParams()$comparator,
+                                              outcomeId = inputParams()$outcome,
                                               databaseId = row$databaseId,
                                               analysisId = row$analysisId)
           }

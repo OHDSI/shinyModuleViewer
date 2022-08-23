@@ -1,6 +1,6 @@
 
 mainColumns <- c("description",
-                 "databaseId",
+                 "cdmSourceAbbreviation",
                  "rr",
                  "ci95Lb",
                  "ci95Ub",
@@ -32,7 +32,6 @@ resultsTableViewer <- function(id) {
 
 
 resultsTableServer <- function(id, resultSubset) {
-  assertthat::assert_that(is.reactive(resultSubset))
   
   shiny::moduleServer(
     id,
@@ -48,7 +47,7 @@ resultsTableServer <- function(id, resultSubset) {
             return(NULL)
           }
           row <- subset[idx, ]
-          row$psStrategy <- gsub("^PS ", "", gsub(", .*$", "", cohortMethodAnalysis$description[cohortMethodAnalysis$analysisId == row$analysisId]))
+          # row$psStrategy <- gsub("^PS ", "", gsub(", .*$", "", cohortMethodAnalysis$description[cohortMethodAnalysis$analysisId == row$analysisId]))
           return(row)
         }
       })
@@ -58,7 +57,6 @@ resultsTableServer <- function(id, resultSubset) {
         if (is.null(table) || nrow(table) == 0) {
           return(NULL)
         }
-        table$description <- cohortMethodAnalysis$description[match(table$analysisId, cohortMethodAnalysis$analysisId)]
         table <- table[, mainColumns]
         table$rr <- prettyHr(table$rr)
         table$ci95Lb <- prettyHr(table$ci95Lb)

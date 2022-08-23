@@ -15,9 +15,7 @@ attritionViewer <- function(id) {
 }
 
 
-attritionServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
+attritionServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
@@ -29,13 +27,11 @@ attritionServer <- function(id, selectedRow, inputParams) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
-          outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == inputParams()$outcome]
           attrition <- getAttrition(connection = connection,
-                                    targetId = targetId,
-                                    comparatorId = comparatorId,
-                                    outcomeId = outcomeId,
+                                    resultsSchema = resultsSchema,
+                                    targetId = inputParams()$target,
+                                    comparatorId = inputParams()$comparator,
+                                    outcomeId = inputParams()$outcome,
                                     databaseId = row$databaseId,
                                     analysisId = row$analysisId)
           plot <- drawAttritionDiagram(attrition)

@@ -12,9 +12,7 @@ propensityModelViewer <- function(id) {
 
 
 
-propensityModelServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
+propensityModelServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
@@ -25,11 +23,10 @@ propensityModelServer <- function(id, selectedRow, inputParams) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
           model <- getPropensityModel(connection = connection,
-                                      targetId = targetId,
-                                      comparatorId = comparatorId,
+                                      resultsSchema = resultsSchema,
+                                      targetId = inputParams()$target,
+                                      comparatorId = inputParams()$comparator,
                                       databaseId = row$databaseId,
                                       analysisId = row$analysisId)
           

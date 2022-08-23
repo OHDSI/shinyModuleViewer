@@ -14,15 +14,15 @@ kaplanMeierViewer <- function(id) {
   )
 }
 
-kaplanMeierServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
+kaplanMeierServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
     function(input, output, session) {
       
       output$isMetaAnalysis <- shiny::reactive({
+        #TODO: update once MA implemented
+        return(FALSE)
         row <- selectedRow()
         isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
         return(isMetaAnalysis)
@@ -35,13 +35,11 @@ kaplanMeierServer <- function(id, selectedRow, inputParams) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
-          outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == inputParams()$outcome]
           km <- getKaplanMeier(connection = connection,
-                               targetId = targetId,
-                               comparatorId = comparatorId,
-                               outcomeId = outcomeId,
+                               resultsSchema = resultsSchema,
+                               targetId = inputParams()$target,
+                               comparatorId = inputParams()$comparator,
+                               outcomeId = inputParams()$outcome,
                                databaseId = row$databaseId,
                                analysisId = row$analysisId)
           plot <- plotKaplanMeier(kaplanMeier = km,

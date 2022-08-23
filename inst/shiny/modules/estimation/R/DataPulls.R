@@ -3,7 +3,6 @@ loadEstimationData <- function(dataFolder) {
   positiveControlOutcome <- NULL
   
   splittableTables <- c("covariate_balance", "preference_score_dist", "kaplan_meier_dist")
-  blind <- FALSE
   
   files <- list.files(dataFolder, pattern = ".rds")
   
@@ -54,9 +53,9 @@ loadEstimationData <- function(dataFolder) {
     invisible(lapply(files[grepl(removePart, files)], loadFile, removePart))
   }
   
-  tcos <- unique(cohortMethodResult[, c("targetId", "comparatorId", "outcomeId")])
-  tcos <- tcos[tcos$outcomeId %in% outcomeOfInterest$outcomeId, ]
-  assign("tcos", tcos, envir = .GlobalEnv)
+  # tcos <- unique(cohortMethodResult[, c("targetId", "comparatorId", "outcomeId")])
+  # tcos <- tcos[tcos$outcomeId %in% outcomeOfInterest$outcomeId, ]
+  # assign("tcos", tcos, envir = .GlobalEnv)
   metaAnalysisDbIds <- database$databaseId[database$isMetaAnalysis == 1]
   assign("metaAnalysisDbIds", metaAnalysisDbIds, envir = .GlobalEnv)
   
@@ -65,196 +64,221 @@ loadEstimationData <- function(dataFolder) {
 }
 
 
-getExposureName <- function(connection, exposureId) {
-  sql <- "SELECT exposure_name FROM single_exposure_of_interest WHERE exposure_id = @exposure_id
-  UNION ALL SELECT exposure_name FROM combi_exposure_of_interest WHERE exposure_id = @exposure_id"
-  sql <- SqlRender::renderSql(sql, exposure_id = exposureId)$sql
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  exposureName <- querySql(connection, sql)
-  return(exposureName[1, 1])
-}
-
-getExposureDescription <- function(connection, exposureId) {
-  sql <- "SELECT description FROM single_exposure_of_interest WHERE exposure_id = @exposure_id
-  UNION ALL SELECT exposure_name FROM combi_exposure_of_interest WHERE exposure_id = @exposure_id"
-  sql <- SqlRender::renderSql(sql, exposure_id = exposureId)$sql
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  exposureDescription <- querySql(connection, sql)
-  return(exposureDescription[1, 1])
-}
-
-getOutcomeName <- function(connection, outcomeId) {
-  sql <- "SELECT outcome_name FROM outcome_of_interest WHERE outcome_id = @outcome_id"
-  sql <- SqlRender::renderSql(sql, outcome_id = outcomeId)$sql
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  outcomeName <- querySql(connection, sql)
-  return(outcomeName[1, 1])
-}
-
-getIndications <- function(connection) {
-  sql <- "SELECT indication_id, indication_name FROM indication"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  indications <- querySql(connection, sql)
-  colnames(indications) <- SqlRender::snakeCaseToCamelCase(colnames(indications))
-  return(indications)
-}
-
-getSubgroups <- function(connection) {
-  sql <- "SELECT DISTINCT interaction_covariate_id AS subgroup_id, covariate_name AS subgroup_name 
-    FROM (
-      SELECT DISTINCT interaction_covariate_id
-      FROM cm_interaction_result
-    ) ids
-    INNER JOIN covariate
-    ON interaction_covariate_id = covariate_id"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  subgroups <- querySql(connection, sql)
-  colnames(subgroups) <- SqlRender::snakeCaseToCamelCase(colnames(subgroups))
-  subgroups$subgroupName <- gsub("Subgroup: ", "", subgroups$subgroupName)
-  return(subgroups)
+getTcoChoice <- function(connection, resultsSchema, tcoVar) {
+  sql <- "
+  SELECT
+  DISTINCT
+  cmtco.@tco_var,
+  cd.cohort_name
+FROM
+  @results_schema.cm_target_comparator_outcome cmtco
+  join @results_schema.cg_cohort_definition cd on cmtco.@tco_var = cd.cohort_definition_id;
+  "
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               results_schema = resultsSchema,
+                                               tco_var = tcoVar)
+  )
 }
 
 
-getExposures <- function(connection) {
-  sql <- "SELECT * FROM (
-    SELECT exposure_id, exposure_name, indication_id FROM single_exposure_of_interest
-    UNION ALL SELECT exposure_id, exposure_name, indication_id FROM combi_exposure_of_interest
-  ) exposure
-  INNER JOIN exposure_group
-  ON exposure.exposure_id = exposure_group.exposure_id;"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  exposures <- querySql(connection, sql)
-  colnames(exposures) <- SqlRender::snakeCaseToCamelCase(colnames(exposures))
-  return(exposures)
+getTargetChoices <- function(connection, resultsSchema) {
+  return(
+    getTcoChoice(connection, resultsSchema, "target_id")
+  )
 }
 
-getOutcomes <- function(connection) {
-  sql <- "SELECT outcome_id, outcome_name, indication_id FROM outcome_of_interest"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  outcomes <- querySql(connection, sql)
-  colnames(outcomes) <- SqlRender::snakeCaseToCamelCase(colnames(outcomes))
-  return(outcomes)
+
+getComparatorChoices <- function(connection, resultsSchema) {
+  return(
+    getTcoChoice(connection, resultsSchema, "comparator_id")
+  )
 }
 
-getAnalyses <- function(connection) {
-  sql <- "SELECT analysis_id, description FROM cohort_method_analysis"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  analyses <- querySql(connection, sql)
-  colnames(analyses) <- SqlRender::snakeCaseToCamelCase(colnames(analyses))
-  return(analyses)
+
+getOutcomeChoices <- function(connection, resultsSchema) {
+  return(
+    getTcoChoice(connection, resultsSchema, "outcome_id")
+  )
 }
 
-getDatabases <- function(connection) {
-  sql <- "SELECT * FROM database"
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  databases <- querySql(connection, sql)
-  colnames(databases) <- SqlRender::snakeCaseToCamelCase(colnames(databases))
-  return(databases)
+
+getDatabaseChoices <- function(connection, resultsSchema) {
+  sql <- "
+SELECT
+DISTINCT
+dmd.database_id,
+dmd.cdm_source_abbreviation
+FROM
+  @results_schema.cm_result cmr
+  join @results_schema.database_meta_data dmd on dmd.database_id = cmr.database_id;
+
+  "
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               results_schema = resultsSchema)
+  )
 }
 
-getDatabaseDetails <- function(connection, databaseId) {
-  sql <- "SELECT * FROM database WHERE database_id = '@database_id'"
-  sql <- SqlRender::renderSql(sql, database_id = databaseId)$sql
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  databaseDetails <- querySql(connection, sql)
-  colnames(databaseDetails) <- SqlRender::snakeCaseToCamelCase(colnames(databaseDetails))
-  databaseDetails$description <- sub("\\n", " ", databaseDetails$description)
-  databaseDetails$description <- sub("JDMC", "JMDC", databaseDetails$description) # TODO Fix in schema
-  return(databaseDetails)
+
+getCmAnalysisOptions <- function(connection, resultsSchema) {
+  sql <- "
+SELECT
+DISTINCT
+cma.analysis_id,
+cma.description
+FROM
+  @results_schema.cm_analysis cma;
+  "
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               results_schema = resultsSchema)
+  )
 }
 
-getIndicationForExposure <- function(connection,
-                                     exposureIds = c()) {
-  sql <- "SELECT exposure_id, indication_id FROM single_exposure_of_interest WHERE"  
-  sql <- paste(sql, paste0("exposure_id IN (", paste(exposureIds, collapse = ", "), ")"))
+getAllResults <- function(connection, resultsSchema) {
+  sql <- "
+SELECT
+  cma.analysis_id,
+  cma.description description,
+  dmd.database_id database_id, -- break?
+  dmd.cdm_source_abbreviation cdm_source_abbreviation,
+  cmr.rr rr,
+  cmr.ci_95_lb ci_95_lb,
+  cmr.ci_95_ub ci_95_ub,
+  cmr.p p,
+  cmr.log_rr,
+  cmr.se_log_rr,
+  cmr.target_subjects,
+  cmr.comparator_subjects, 
+  cmr.target_days,
+  cmr.comparator_days,
+  cmr.target_outcomes,
+  cmr.comparator_outcomes,
+  cmr.calibrated_rr calibrated_rr,
+  cmr.calibrated_ci_95_lb calibrated_ci_95_lb,
+  cmr.calibrated_ci_95_ub calibrated_ci_95_ub,
+  cmr.calibrated_p calibrated_p,
+  cmr.calibrated_log_rr,
+  cmr.calibrated_se_log_rr,
+  COALESCE(cmds.unblind, 0) unblind -- TODO: assume unblinded? (or always populated and moot)
+FROM
+  @results_schema.cm_analysis cma
+  JOIN @results_schema.cm_result cmr on cmr.analysis_id = cma.analysis_id
+  JOIN @results_schema.database_meta_data dmd on dmd.database_id = cmr.database_id
+  LEFT JOIN @results_schema.cm_diagnostics_summary cmds on cmds.analysis_id = cmr.analysis_id
+  "
   
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  indications <- querySql(connection, sql)
-  colnames(indications) <- SqlRender::snakeCaseToCamelCase(colnames(indications))
-  return(indications)  
+  
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               warnOnMissingParameters = FALSE,
+                                               results_schema = resultsSchema)
+  )
 }
 
-getTcoDbs <- function(connection,
-                      targetIds = c(),
-                      comparatorIds = c(),
-                      outcomeIds = c(),
-                      databaseIds = c(),
-                      operator = "AND") {
-  sql <- "SELECT target_id, comparator_id, outcome_id, database_id FROM cohort_method_result WHERE analysis_id = 1"
-  parts <- c()
-  if (length(targetIds) != 0) {
-    parts <- c(parts, paste0("target_id IN (", paste(targetIds, collapse = ", "), ")"))
-  }
-  if (length(comparatorIds) != 0) {
-    parts <- c(parts, paste0("comparator_id IN (", paste(comparatorIds, collapse = ", "), ")"))
-  }
-  if (length(outcomeIds) != 0) {
-    parts <- c(parts, paste0("outcome_id IN (", paste(outcomeIds, collapse = ", "), ")"))
-  }
-  if (length(databaseIds) != 0) {
-    parts <- c(parts, paste0("database_id IN ('", paste(databaseIds, collapse = "', '"), "')"))
-  }
-  if (length(parts) != 0) {
-    if (operator == "AND") {
-      sql <- paste(sql, "AND", paste(parts, collapse = " AND "))
-    } else {
-      sql <- paste(sql, "AND", paste(parts, collapse = " OR "))
-    }
-  }
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  tcoDbs <- querySql(connection, sql)
-  colnames(tcoDbs) <- SqlRender::snakeCaseToCamelCase(colnames(tcoDbs))
-  return(tcoDbs)
-}
-
-getTcoDbsStrict <- function(connection, exposureIds = c(), outcomeIds = c(), databaseIds = c()) {
-  sql <- "SELECT target_id, comparator_id, outcome_id, database_id FROM cohort_method_result WHERE analysis_id = 1"
-  parts <- c()
-  if (length(exposureIds) != 0) {
-    for (exposureId in exposureIds) {
-      parts <- c(parts,
-                 paste0("(target_id = ", exposureId, " OR comparator_id = ", exposureId, ")"))
-    }
-  }
-  if (length(outcomeIds) != 0) {
-    parts <- c(parts, paste0("outcome_id IN (", paste(outcomeIds, collapse = ", "), ")"))
-  }
-  if (length(databaseIds) != 0) {
-    parts <- c(parts, paste0("database_id IN ('", paste(databaseIds, collapse = "', '"), "')"))
-  }
-  if (length(parts) != 0) {
-    sql <- paste(sql, "AND", paste(parts, collapse = " AND "))
-  }
-  sql <- SqlRender::translateSql(sql, targetDialect = connection@dbms)$sql
-  tcoDbs <- querySql(connection, sql)
-  colnames(tcoDbs) <- SqlRender::snakeCaseToCamelCase(colnames(tcoDbs))
-  return(tcoDbs)
-}
 
 getMainResults <- function(connection,
+                           resultsSchema,
                            targetIds = c(),
                            comparatorIds = c(),
                            outcomeIds = c(),
                            databaseIds = c(),
                            analysisIds = c()) {
-  idx <- rep(TRUE, nrow(cohortMethodResult))
-  if (length(targetIds) != 0) {
-     idx <- idx & cohortMethodResult$targetId %in% targetIds
+  
+  sql <- "
+SELECT
+  cma.analysis_id,
+  cma.description description,
+  dmd.database_id database_id, -- break?
+  dmd.cdm_source_abbreviation cdm_source_abbreviation,
+  cmr.rr rr,
+  cmr.ci_95_lb ci_95_lb,
+  cmr.ci_95_ub ci_95_ub,
+  cmr.p p,
+  cmr.log_rr,
+  cmr.se_log_rr,
+  cmr.target_subjects,
+  cmr.comparator_subjects, 
+  cmr.target_days,
+  cmr.comparator_days,
+  cmr.target_outcomes,
+  cmr.comparator_outcomes,
+  cmr.calibrated_rr calibrated_rr,
+  cmr.calibrated_ci_95_lb calibrated_ci_95_lb,
+  cmr.calibrated_ci_95_ub calibrated_ci_95_ub,
+  cmr.calibrated_p calibrated_p,
+  cmr.calibrated_log_rr,
+  cmr.calibrated_se_log_rr,
+  COALESCE(cmds.unblind, 0) unblind -- TODO: assume unblinded? (or always populated and moot)
+FROM
+  @results_schema.cm_analysis cma
+  JOIN @results_schema.cm_result cmr on cmr.analysis_id = cma.analysis_id
+  JOIN @results_schema.database_meta_data dmd on dmd.database_id = cmr.database_id
+  LEFT JOIN @results_schema.cm_diagnostics_summary cmds on cmds.analysis_id = cmr.analysis_id
+	AND cmds.target_id = cmr.target_id
+	AND cmds.comparator_id = cmr.comparator_id
+	AND cmds.outcome_id = cmr.outcome_id
+	AND cmds.database_id = cmr.database_id
+  "
+  if (length(targetIds) > 0 ||
+      length(comparatorIds) > 0 ||
+      length(outcomeIds) > 0 ||
+      length(databaseIds) > 0 ||
+      length(analysisIds) > 0) {
+    sql <- paste0(sql, "\nWHERE\n\t")
   }
-  if (length(comparatorIds) != 0) {
-    idx <- idx & cohortMethodResult$comparatorId %in% comparatorIds
+  
+  clauses <- c()
+  if (length(targetIds) > 0 ) {
+    clauses <- c(clauses, "cmr.target_id IN (@target_ids)\n\t")
   }
-  if (length(outcomeIds) != 0) {
-    idx <- idx & cohortMethodResult$outcomeId %in% outcomeIds
+  if (length(comparatorIds) > 0) {
+    clauses <- c(clauses, "cmr.comparator_id IN (@comparator_ids)\n\t")
   }
-  if (length(databaseIds) != 0) {
-    idx <- idx & cohortMethodResult$databaseId %in% databaseIds
+  if (length(outcomeIds) > 0) {
+    clauses <- c(clauses, "cmr.outcome_id IN (@outcome_ids)\n\t")
   }
-  if (length(analysisIds) != 0) {
-    idx <- idx & cohortMethodResult$analysisId %in% analysisIds
+  if (length(databaseIds) > 0) {
+    clauses <- c(clauses, "cmr.database_id IN (@database_ids)\n\t")
   }
-  return(cohortMethodResult[idx, ])
+  if (length(analysisIds) > 0) {
+    clauses <- c(clauses, "cmr.analysis_id IN (@analysis_ids)\n\t")
+  }
+  sql <- paste0(sql, paste(clauses, collapse = " AND "), ";")
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               warnOnMissingParameters = FALSE,
+                                               results_schema = resultsSchema,
+                                               target_ids = paste0("'", paste(targetIds, collapse = "', '"), "'"),
+                                               comparator_ids = paste0("'", paste(comparatorIds, collapse = "', '"), "'"),
+                                               outcome_ids = paste0("'", paste(outcomeIds, collapse = "', '"), "'"),
+                                               database_ids = paste0("'", paste(databaseIds, collapse = "', '"), "'"),
+                                               analysis_ids = paste0("'", paste(analysisIds, collapse = "', '"), "'"))
+  )
+   
 }
+
+
+getCohortMethodAnalyses <- function(connection, resultsSchema) {
+  sql <- "
+  SELECT
+    cma.*
+  FROM
+    @results_schema.cm_analysis cma
+  "
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               results_schema = resultsSchema)
+  )
+}
+
 
 getSubgroupResults <- function(connection,
                                targetIds = c(),
@@ -306,137 +330,267 @@ getSubgroupResults <- function(connection,
   return(result)
 }
 
-getControlResults <- function(cohortMethodResult, connection, targetId, comparatorId, analysisId, databaseId = NULL, includePositiveControls = TRUE) {
-  results <- cohortMethodResult[cohortMethodResult$targetId == targetId &
-                                  cohortMethodResult$comparatorId == comparatorId &
-                                  cohortMethodResult$analysisId == analysisId, ]
-  if (!is.null(databaseId))
-    results <- results[results$databaseId == databaseId, ]
+
+getControlResults <- function(connection, resultsSchema, targetId,
+                              comparatorId, analysisId, databaseId = NULL,
+                              includePositiveControls = TRUE) {
   
-  results$effectSize <- NA
-  idx <- results$outcomeId %in% negativeControlOutcome$outcomeId
-  results$effectSize[idx] <- 1
-  if (!is.null(positiveControlOutcome) && includePositiveControls) {
-    idx <- results$outcomeId %in% positiveControlOutcome$outcomeId
-    results$effectSize[idx] <- positiveControlOutcome$effectSize[match(results$outcomeId[idx],
-                                                                       positiveControlOutcome$outcomeId)]
+  sql <- "
+    SELECT
+      cmr.*,
+      cmtco.true_effect_size effect_size
+    FROM
+      @results_schema.cm_result cmr
+      JOIN @results_schema.cm_target_comparator_outcome cmtco ON cmr.target_id = cmtco.target_id AND cmr.comparator_id = cmtco.comparator_id AND cmr.outcome_id = cmtco.outcome_id
+    WHERE
+      cmtco.outcome_of_interest != 1
+      AND cmr.target_id = @target_id
+      AND cmr.comparator_id = @comparator_id
+      AND cmr.analysis_id = @analysis_id
+  "
+  
+  
+  if (!is.null(databaseId)) {
+    # update sql
+    sql <- paste(sql, paste("AND cmr.database_id = '@database_id'"), collapse = "\n")
   }
   
-  results <- results[!is.na(results$effectSize), ]
-  return(results)
+  if (!includePositiveControls) {
+    # update sql
+    sql <- paste(sql, paste("AND cmtco.true_effect_size = 1"), collapse = "\n")
+  }
+  
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               warnOnMissingParameters = FALSE,
+                                               results_schema = resultsSchema,
+                                               target_id = targetId,
+                                               comparator_id = comparatorId,
+                                               analysis_id = analysisId,
+                                               database_id = databaseId)
+  )
 }
 
-getCmFollowUpDist <- function(cmFollowUpDist,
-                              connection,
+
+getCmFollowUpDist <- function(connection,
+                              resultsSchema,
                               targetId,
                               comparatorId,
                               outcomeId,
                               databaseId = NULL,
                               analysisId) {
-  followUpDist <- cmFollowUpDist[cmFollowUpDist$targetId == targetId &
-                                 cmFollowUpDist$comparatorId == comparatorId &
-                                 cmFollowUpDist$outcomeId == outcomeId &
-                                 cmFollowUpDist$analysisId == analysisId, ]
-  if (!is.null(databaseId)) {
-    followUpDist <- followUpDist[followUpDist$databaseId == databaseId, ]
+  
+  sql <- "
+  SELECT
+    *
+  FROM
+    @results_schema.cm_follow_up_dist cmfud
+  WHERE
+    cmfud.target_id = @target_id
+    AND cmfud.comparator_id = @comparator_id
+    AND cmfud.outcome_id = @outcome_id
+    AND cmfud.analysis_id = @analysis_id
+  "
+  if(!is.null(databaseId)) {
+    sql <- paste(sql, paste("AND cmfud.database_id = '@database_id'"), collapse = "\n")
   }
-  return(followUpDist)
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               warnOnMissingParameters = FALSE,
+                                               results_schema = resultsSchema,
+                                               target_id = targetId,
+                                               comparator_id = comparatorId,
+                                               outcome_id = outcomeId,
+                                               analysis_id = analysisId,
+                                               database_id = databaseId)
+  )
 }
 
+
 getCovariateBalance <- function(connection,
+                                resultsSchema,
                                 targetId,
                                 comparatorId,
                                 analysisId,
                                 databaseId = NULL,
                                 outcomeId = NULL) {
   
-  loadCovariateBalance <- function(file, parseDatabaseName = FALSE) {
-    balance <- readRDS(file)
-    if (parseDatabaseName) {
-      fileBaseName <- basename(file)
-      databaseId <- gsub(pattern = "^covariate_balance_t\\d+_c\\d+|\\.rds", replacement = "", x = fileBaseName)
-      if (is.null(databaseId) || databaseId == "")
-        databaseId <- fileBaseName
-      balance[, "databaseId"] <- databaseId
-    }
-    return(balance)
-  }
   
-  if (!is.null(databaseId)) {
-    file <- sprintf("covariate_balance_t%s_c%s_%s.rds", targetId, comparatorId, databaseId)
-    balance <- loadCovariateBalance(file.path(dataFolder, file))
+  sql <- ""
+  if (is.null(outcomeId)) {
+    sql <- "
+      SELECT
+        cmscb.database_id,
+        cmscb.covariate_id,
+        cmc.covariate_name,
+        -- cmc.covariate_analysis_id analysis_id, #TODO: once cm_analysis_id bug fixed
+        cmscb.target_mean_before before_matching_mean_treated,
+        cmscb.comparator_mean_before before_matching_mean_comparator,
+        abs(cmscb.std_diff_before) before_matching_std_diff,
+        cmscb.target_mean_after after_matching_mean_treated,
+        cmscb.comparator_mean_after after_matching_mean_comparator,
+        abs(cmscb.std_diff_after) after_matching_std_diff
+      FROM
+        @results_schema.cm_shared_covariate_balance cmscb 
+        JOIN @results_schema.cm_covariate cmc ON cmscb.covariate_id = cmc.covariate_id AND cmscb.analysis_id = cmc.analysis_id AND cmscb.database_id = cmc.database_id -- database_id optional
+       -- JOIN poc.cm_covariate_analysis cmca ON cmca.analysis_id = cmc.analysis_id  -- question: shouldn't we have a covariate_analysis_id in cm_covariate table?
+      WHERE
+        cmscb.target_id = @target_id
+        AND cmscb.comparator_id = @comparator_id
+        AND cmscb.analysis_id = @analysis_id
+        AND cmscb.database_id = '@database_id'
+    "
   } else {
-    balanceFiles <- list.files(dataFolder, pattern = sprintf("^covariate_balance_t%s_c%s_.*\\.rds", targetId, comparatorId), full.names = TRUE)
-    balance <- do.call("rbind", lapply(balanceFiles, loadCovariateBalance, parseDatabaseName = TRUE))
+    sql <- "
+      SELECT
+        cmcb.database_id,
+        cmcb.covariate_id,
+        cmc.covariate_name,
+        -- cmc.covariate_analysis_id analysis_id, #TODO: once cm_analysis_id bug fixed
+        cmcb.target_mean_before before_matching_mean_treated,
+        cmcb.comparator_mean_before before_matching_mean_comparator,
+        abs(cmcb.std_diff_before) before_matching_std_diff,
+        cmcb.target_mean_after after_matching_mean_treated,
+        cmcb.comparator_mean_after after_matching_mean_comparator,
+        abs(cmcb.std_diff_after) after_matching_std_diff
+      FROM
+        @results_schema.cm_covariate_balance cmcb
+        JOIN @results_schema.cm_covariate cmc ON cmcb.covariate_id = cmcb.covariate_id AND cmcb.analysis_id = cmc.analysis_id AND cmcb.database_id = cmc.database_id -- database_id optional
+       -- JOIN poc.cm_covariate_analysis cmca ON cmca.analysis_id = cmc.analysis_id  -- question: shouldn't we have a covariate_analysis_id in cm_covariate table?
+      WHERE
+        cmcb.target_id = @target_id
+        AND cmcb.comparator_id = @comparator_id
+        AND cmcb.outcome_id = @outcome_id
+        AND cmcb.analysis_id = @analysis_id
+        AND cmcb.database_id = '@database_id'
+    "
   }
-  colnames(balance) <- SqlRender::snakeCaseToCamelCase(colnames(balance))
-  balance <- balance[balance$analysisId == analysisId, ]
-  if (!is.null(outcomeId))
-    balance <- balance[balance$outcomeId == outcomeId, ]
   
-  if (!is.null(databaseId))
-    balance <- merge(balance, covariate[covariate$databaseId == databaseId & covariate$analysisId == analysisId, 
-                                      c("covariateId", "covariateAnalysisId", "covariateName")])
-  else
-    balance <- merge(balance, covariate[covariate$analysisId == analysisId, 
-                                        c("covariateId", "covariateAnalysisId", "covariateName")])
-  balance <- balance[ c("databaseId",
-                        "covariateId",
-                        "covariateName",
-                        "covariateAnalysisId", 
-                        "targetMeanBefore", 
-                        "comparatorMeanBefore", 
-                        "stdDiffBefore", 
-                        "targetMeanAfter", 
-                        "comparatorMeanAfter",
-                        "stdDiffAfter")]
-  colnames(balance) <- c("databaseId",
-                         "covariateId",
-                         "covariateName",
-                         "analysisId",
-                         "beforeMatchingMeanTreated",
-                         "beforeMatchingMeanComparator",
-                         "beforeMatchingStdDiff",
-                         "afterMatchingMeanTreated",
-                         "afterMatchingMeanComparator",
-                         "afterMatchingStdDiff")
-  balance$absBeforeMatchingStdDiff <- abs(balance$beforeMatchingStdDiff)
-  balance$absAfterMatchingStdDiff <- abs(balance$afterMatchingStdDiff)
-  return(balance)
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection = connection,
+                                                        sql = sql,
+                                                        snakeCaseToCamelCase = TRUE,
+                                                        warnOnMissingParameters = FALSE,
+                                                        results_schema = resultsSchema,
+                                                        target_id = targetId,
+                                                        comparator_id = comparatorId,
+                                                        outcome_id = outcomeId,
+                                                        analysis_id = analysisId,
+                                                        database_id = databaseId)
+  )
+  
 }
 
-getPs <- function(connection, targetIds, comparatorIds, analysisId, databaseId = "") {
-  if(databaseId != "") {
-    file <- sprintf("preference_score_dist_t%s_c%s_%s.rds", targetIds, comparatorIds, databaseId)
-    ps <- readRDS(file.path(dataFolder, file))
-  } else {
-    psFiles <- list.files(dataFolder, pattern = sprintf("^preference_score_dist_t%s_c%s_.*\\.rds", targetIds, comparatorIds), full.names = TRUE)
-    ps <- do.call("rbind", lapply(psFiles, readRDS))
+
+getPs <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId = NULL) {
+  sql <- "
+    SELECT
+      *
+    FROM
+      @results_schema.cm_preference_score_dist cmpsd
+    WHERE
+      cmpsd.target_id = @target_id
+      AND cmpsd.comparator_id = @comparator_id
+      AND cmpsd.analysis_id = @analysis_id
+  "
+  if(!is.null(databaseId)) {
+    sql <- paste(sql, paste("AND cmpsd.database_id = '@database_id'"), collapse = "\n")
   }
-  colnames(ps) <- SqlRender::snakeCaseToCamelCase(colnames(ps))
-  ps <- ps[ps$analysisId == analysisId, ]
-  if (databaseId != "") {
+
+  
+  ps <- DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                                   snakeCaseToCamelCase = TRUE,
+                                                   warnOnMissingParameters = FALSE,
+                                                   results_schema = resultsSchema,
+                                                   target_id = targetId,
+                                                   comparator_id = comparatorId,
+                                                   analysis_id = analysisId,
+                                                   database_id = databaseId)
+  
+  
+  if (!is.null(databaseId)) {
     ps$databaseId <- NULL
   }
   return(ps)
 }
 
-getKaplanMeier <- function(connection, targetId, comparatorId, outcomeId, databaseId, analysisId) {
-  file <- sprintf("kaplan_meier_dist_t%s_c%s_%s.rds", targetId, comparatorId, databaseId)
-  km <- readRDS(file.path(dataFolder, file))
-  colnames(km) <- SqlRender::snakeCaseToCamelCase(colnames(km))
-  km <- km[km$outcomeId == outcomeId &
-             km$analysisId == analysisId, ]
+
+getKaplanMeier <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, databaseId, analysisId) {
+  sqlTmp <- "
+  SELECT
+    *
+  FROM
+    @results_schema.cm_kaplan_meier_dist cmkmd
+    JOIN @results_schema.database_meta_data dmd on  dmd.database_id = cmkmd.database_id
+  WHERE
+    cmkmd.target_id = @target_id
+    AND cmkmd.comparator_id = @comparator_id
+    AND cmkmd.outcome_id = @outcome_id
+    AND cmkmd.analysis_id = @analysis_id
+    AND dmd.cdm_source_abbreviation = '@database_id';
+  "
+  sql <- "
+  SELECT
+    *
+  FROM
+    @results_schema.cm_kaplan_meier_dist cmkmd
+  WHERE
+    cmkmd.target_id = @target_id
+    AND cmkmd.comparator_id = @comparator_id
+    AND cmkmd.outcome_id = @outcome_id
+    AND cmkmd.analysis_id = @analysis_id
+    AND cmkmd.database_id = '@database_id';
+  "
   
-  return(km)
+  return(
+    DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                                         snakeCaseToCamelCase = TRUE,
+                                                         results_schema = resultsSchema,
+                                                         target_id = targetId,
+                                                         comparator_id = comparatorId,
+                                                         outcome_id = outcomeId,
+                                                         analysis_id = analysisId,
+                                                         database_id = databaseId)
+  )
 }
 
-getAttrition <- function(connection, targetId, comparatorId, outcomeId, analysisId, databaseId) {
-  result <- attrition[attrition$targetId == targetId &
-                        attrition$comparatorId == comparatorId &
-                        attrition$outcomeId == outcomeId &
-                        attrition$analysisId == analysisId &
-                        attrition$databaseId == databaseId, ]
+
+getAttrition <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, analysisId, databaseId) {
+  sqlTmp <- "
+  SELECT
+    cmat.*
+  FROM
+    @results_schema.cm_attrition cmat
+    JOIN @results_schema.database_meta_data dmd on dmd.database_id = cmat.database_id
+  WHERE
+  cmat.target_id = @target_id
+  AND cmat.comparator_id = @comparator_id
+  AND cmat.outcome_id = @outcome_id
+  AND cmat.analysis_id = @analysis_id
+  AND dmd.cdm_source_abbreviation = '@database_id';
+  "
+  sql <- "
+  SELECT
+    cmat.*
+  FROM
+    @results_schema.cm_attrition cmat
+  WHERE
+  cmat.target_id = @target_id
+  AND cmat.comparator_id = @comparator_id
+  AND cmat.outcome_id = @outcome_id
+  AND cmat.analysis_id = @analysis_id
+  AND cmat.database_id = '@database_id';
+  "
+  result <- DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                               snakeCaseToCamelCase = TRUE,
+                                               results_schema = resultsSchema,
+                                               target_id = targetId,
+                                               comparator_id = comparatorId,
+                                               outcome_id = outcomeId,
+                                               analysis_id = analysisId,
+                                               database_id = databaseId)
   targetAttrition <- result[result$exposureId == targetId, ]
   comparatorAttrition <- result[result$exposureId == comparatorId, ]
   colnames(targetAttrition)[colnames(targetAttrition) == "subjects"] <- "targetPersons"
@@ -447,6 +601,7 @@ getAttrition <- function(connection, targetId, comparatorId, outcomeId, analysis
   result <- result[order(result$sequenceNumber), ]
   return(result)
 }
+
 
 getStudyPeriod <- function(connection, targetId, comparatorId, databaseId) {
   sql <- "SELECT min_date,
@@ -465,20 +620,60 @@ getStudyPeriod <- function(connection, targetId, comparatorId, databaseId) {
   return(studyPeriod)
 }
 
-getPropensityModel <- function(connection, targetId, comparatorId, analysisId, databaseId) {
-  model <- propensityModel[propensityModel$targetId == targetId &
-                             propensityModel$comparatorId == comparatorId &
-                             propensityModel$analysisId == analysisId &
-                             propensityModel$databaseId == databaseId, ]
-  covariateSubset <- covariate[covariate$databaseId == databaseId & covariate$analysisId == analysisId, 
-                               c("covariateId", "covariateName")]
-  covariateSubset <- rbind(covariateSubset, 
-                           data.frame(covariateId = 0,
-                                      covariateName = "Intercept"))
-  model <- merge(model, covariateSubset)
-  model <- model[, c("coefficient", "covariateId", "covariateName")]
+
+getPropensityModel <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId) {
+  sqlTmp <- "
+  SELECT
+    cmpm.coefficient,
+    cmc.covariate_id,
+    cmc.covariate_name
+  FROM
+    @results_schema.cm_covariate cmc
+    JOIN @results_schema.cm_propensity_model cmpm ON cmc.covariate_id = cmpm.covariate_id AND cmc.database_id = cmpm.database_id
+  WHERE
+    cmpm.target_id = @target_id
+    AND cmpm.comparator_id = @comparator_id
+    AND cmpm.analysis_id = @analysis_id
+    AND cmpm.database_id = '@database_id'
+  "
+  
+  sql <- "
+    SELECT
+    cmc.covariate_id,
+    cmc.covariate_name,
+    cmpm.coefficient
+  FROM
+    (
+      SELECT
+        covariate_id,
+        covariate_name
+      FROM
+        @results_schema.cm_covariate
+      WHERE
+        analysis_id = @analysis_id
+        AND database_id = '@database_id'
+      UNION
+      SELECT
+      0 as covariate_id,
+      'intercept' as covariate_name) cmc
+    JOIN @results_schema.cm_propensity_model cmpm ON cmc.covariate_id = cmpm.covariate_id
+  WHERE
+    cmpm.target_id = @target_id
+    AND cmpm.comparator_id = @comparator_id
+    AND cmpm.analysis_id = @analysis_id
+    AND cmpm.database_id = '@database_id'
+  "
+  
+  model <- DatabaseConnector::renderTranslateQuerySql(connection, sql,
+                                                      snakeCaseToCamelCase = TRUE,
+                                                      results_schema = resultsSchema,
+                                                      target_id = targetId,
+                                                      comparator_id = comparatorId,
+                                                      analysis_id = analysisId,
+                                                      database_id = databaseId)
   return(model)
 }
+
 
 getCovariateBalanceSummary <- function(connection, targetId, comparatorId, analysisId,
                                        beforeLabel = "Before matching",

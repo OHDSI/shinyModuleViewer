@@ -29,15 +29,15 @@ systematicErrorViewer <- function(id) {
 }
 
 
-systematicErrorServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
+systematicErrorServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,
     function(input, output, session) {
       
       output$isMetaAnalysis <- shiny::reactive({
+        return(FALSE)
+        # TODO: update once MA implemented
         row <- selectedRow()
         isMetaAnalysis <- !is.null(row) && (row$databaseId %in% metaAnalysisDbIds)
         return(isMetaAnalysis)
@@ -52,12 +52,10 @@ systematicErrorServer <- function(id, selectedRow, inputParams) {
         if (is.null(row)) {
           return(NULL)
         } else {
-          targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
-          comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
-          controlResults <- getControlResults(cohortMethodResult,
-                                              connection = connection,
-                                              targetId = targetId,
-                                              comparatorId = comparatorId,
+          controlResults <- getControlResults(connection = connection,
+                                              resultsSchema = resultsSchema,
+                                              targetId = inputParams()$target,
+                                              comparatorId = inputParams()$comparator,
                                               analysisId = row$analysisId,
                                               databaseId = row$databaseId)
           
@@ -88,8 +86,9 @@ systematicErrorServer <- function(id, selectedRow, inputParams) {
           return(NULL)
         } else {
           negativeControls <- getNegativeControlEstimates(connection = connection,
-                                                          targetId = row$targetId,
-                                                          comparatorId = row$comparatorId,
+                                                          resultsSchema = resultsSchema,
+                                                          targetId = inputParams()$target,
+                                                          comparatorId = inputParams()$comparator,
                                                           analysisId =  row$analysisId)
           if (is.null(negativeControls))
             return(NULL)

@@ -20,8 +20,6 @@ forestPlotViewer <- function(id) {
 
 
 forestPlotServer <- function(id, selectedRow, inputParams) {
-  assertthat::assert_that(is.reactive(selectedRow))
-  assertthat::assert_that(is.reactive(inputParams))
   
   shiny::moduleServer(
     id,
