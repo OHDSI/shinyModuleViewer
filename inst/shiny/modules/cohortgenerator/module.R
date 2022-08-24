@@ -54,7 +54,7 @@ cohortGeneratorServer <- function(id, generationConnectionDetails) {
         sql <- "SELECT * FROM POC.CG_COHORT_SUMMARY_STATS"
         data <- DatabaseConnector::querySql(connection = connection, sql = sql)
         
-        reactable(
+        reactable::reactable(
           data,
           groupBy = c("DATABASE_ID", "COHORT_DEFINITION_ID"),
           striped = TRUE,
