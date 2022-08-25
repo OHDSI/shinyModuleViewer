@@ -23,14 +23,14 @@ propensityModelServer <- function(id, selectedRow, inputParams, connection, resu
         if (is.null(row)) {
           return(NULL)
         } else {
-          model <- getPropensityModel(connection = connection,
+          model <- getEstimationPropensityModel(connection = connection,
                                       resultsSchema = resultsSchema,
                                       targetId = inputParams()$target,
                                       comparatorId = inputParams()$comparator,
                                       databaseId = row$databaseId,
                                       analysisId = row$analysisId)
           
-          table <- preparePropensityModelTable(model)
+          table <- prepareEstimationPropensityModelTable(model)
           options = list(columnDefs = list(list(className = 'dt-right',  targets = 0)),
                          pageLength = 15,
                          searching = FALSE,

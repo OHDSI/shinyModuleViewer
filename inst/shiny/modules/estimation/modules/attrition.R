@@ -27,14 +27,14 @@ attritionServer <- function(id, selectedRow, inputParams, connection, resultsSch
         if (is.null(row)) {
           return(NULL)
         } else {
-          attrition <- getAttrition(connection = connection,
+          attrition <- getEstimationAttrition(connection = connection,
                                     resultsSchema = resultsSchema,
                                     targetId = inputParams()$target,
                                     comparatorId = inputParams()$comparator,
                                     outcomeId = inputParams()$outcome,
                                     databaseId = row$databaseId,
                                     analysisId = row$analysisId)
-          plot <- drawAttritionDiagram(attrition)
+          plot <- drawEstimationAttritionDiagram(attrition)
           return(plot)
         }
       })

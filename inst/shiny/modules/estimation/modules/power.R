@@ -42,12 +42,12 @@ powerServer <- function(id, selectedRow, inputParams, connection, resultsSchema)
         } else {
           #TODO: update once MA implemented
           if (FALSE && row$databaseId %in% metaAnalysisDbIds) {
-            results <- getMainResults(connection = connection,
+            results <- getEstimationMainResults(connection = connection,
                                       targetIds = row$targetId,
                                       comparatorIds = row$comparatorId,
                                       outcomeIds = row$outcomeId,
                                       analysisIds = row$analysisId)
-            table <- preparePowerTable(results, connection, resultsSchema)
+            table <- prepareEstimationPowerTable(results, connection, resultsSchema)
             table$description <- NULL
             if (!row$unblind) {
               table$targetOutcomes  <- NA
@@ -67,7 +67,7 @@ powerServer <- function(id, selectedRow, inputParams, connection, resultsSchema)
                                  "Comparator IR (per 1,000 PY)",
                                  "MDRR")
           } else {
-            table <- preparePowerTable(row, connection, resultsSchema)
+            table <- prepareEstimationPowerTable(row, connection, resultsSchema)
             table$description <- NULL
             table$databaseId <- NULL
             if (!row$unblind) {
@@ -124,7 +124,7 @@ powerServer <- function(id, selectedRow, inputParams, connection, resultsSchema)
                                               databaseId = row$databaseId,
                                               analysisId = row$analysisId)
           }
-          table <- prepareFollowUpDistTable(followUpDist)
+          table <- prepareEstimationFollowUpDistTable(followUpDist)
           return(table)
         }
       })

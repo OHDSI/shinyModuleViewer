@@ -52,14 +52,14 @@ systematicErrorServer <- function(id, selectedRow, inputParams, connection, resu
         if (is.null(row)) {
           return(NULL)
         } else {
-          controlResults <- getControlResults(connection = connection,
+          controlResults <- getEstimationControlResults(connection = connection,
                                               resultsSchema = resultsSchema,
                                               targetId = inputParams()$target,
                                               comparatorId = inputParams()$comparator,
                                               analysisId = row$analysisId,
                                               databaseId = row$databaseId)
           
-          plot <- plotScatter(controlResults)
+          plot <- plotEstimationScatter(controlResults)
           return(plot)
         }
       })
@@ -85,7 +85,7 @@ systematicErrorServer <- function(id, selectedRow, inputParams, connection, resu
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
           return(NULL)
         } else {
-          negativeControls <- getNegativeControlEstimates(connection = connection,
+          negativeControls <- getEstimationNegativeControlEstimates(connection = connection,
                                                           resultsSchema = resultsSchema,
                                                           targetId = inputParams()$target,
                                                           comparatorId = inputParams()$comparator,
@@ -93,7 +93,7 @@ systematicErrorServer <- function(id, selectedRow, inputParams, connection, resu
           if (is.null(negativeControls))
             return(NULL)
           
-          plot <- plotEmpiricalNulls(negativeControls)
+          plot <- plotEstimationEmpiricalNulls(negativeControls)
           return(plot)
         }
       })

@@ -42,7 +42,7 @@ covariateBalanceServer <- function(id, selectedRow, inputParams, connection, res
       
       balance <- shiny::reactive({
         row <- selectedRow()
-       balance <- getCovariateBalance(connection = connection,
+       balance <- getEstimationCovariateBalance(connection = connection,
                                      resultsSchema = resultsSchema,
                                      targetId = inputParams()$target,
                                      comparatorId = inputParams()$comparator,
@@ -65,7 +65,7 @@ covariateBalanceServer <- function(id, selectedRow, inputParams, connection, res
         if (is.null(balance()) || nrow(balance()) == 0) {
           return(NULL)
         } else {
-          plot <- plotCovariateBalanceScatterPlot(balance = balance(),
+          plot <- plotEstimationCovariateBalanceScatterPlot(balance = balance(),
                                                   beforeLabel = "Before propensity score adjustment",
                                                   afterLabel = "After propensity score adjustment")
           return(plot)
@@ -139,13 +139,13 @@ covariateBalanceServer <- function(id, selectedRow, inputParams, connection, res
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
           return(NULL)
         } else {
-          balanceSummary <- getCovariateBalanceSummary(connection = connection,
+          balanceSummary <- getEstimationCovariateBalanceSummary(connection = connection,
                                                        targetId = row$targetId,
                                                        comparatorId = row$comparatorId,
                                                        analysisId = row$analysisId,
                                                        beforeLabel = paste("Before", row$psStrategy),
                                                        afterLabel = paste("After", row$psStrategy))
-          plot <- plotCovariateBalanceSummary(balanceSummary,
+          plot <- plotEstimationCovariateBalanceSummary(balanceSummary,
                                               threshold = 0.1,
                                               beforeLabel = paste("Before", row$psStrategy),
                                               afterLabel = paste("After", row$psStrategy))

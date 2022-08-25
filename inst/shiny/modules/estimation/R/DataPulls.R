@@ -64,7 +64,7 @@ loadEstimationData <- function(dataFolder) {
 }
 
 
-getTcoChoice <- function(connection, resultsSchema, tcoVar) {
+getEstimationTcoChoice <- function(connection, resultsSchema, tcoVar) {
   sql <- "
   SELECT
   DISTINCT
@@ -83,28 +83,28 @@ FROM
 }
 
 
-getTargetChoices <- function(connection, resultsSchema) {
+getEstimationTargetChoices <- function(connection, resultsSchema) {
   return(
-    getTcoChoice(connection, resultsSchema, "target_id")
+    getEstimationTcoChoice(connection, resultsSchema, "target_id")
   )
 }
 
 
-getComparatorChoices <- function(connection, resultsSchema) {
+getEstimationComparatorChoices <- function(connection, resultsSchema) {
   return(
-    getTcoChoice(connection, resultsSchema, "comparator_id")
+    getEstimationTcoChoice(connection, resultsSchema, "comparator_id")
   )
 }
 
 
-getOutcomeChoices <- function(connection, resultsSchema) {
+getEstimationOutcomeChoices <- function(connection, resultsSchema) {
   return(
-    getTcoChoice(connection, resultsSchema, "outcome_id")
+    getEstimationTcoChoice(connection, resultsSchema, "outcome_id")
   )
 }
 
 
-getDatabaseChoices <- function(connection, resultsSchema) {
+getEstimationDatabaseChoices <- function(connection, resultsSchema) {
   sql <- "
 SELECT
 DISTINCT
@@ -139,7 +139,7 @@ FROM
   )
 }
 
-getAllResults <- function(connection, resultsSchema) {
+getAllEstimationResults <- function(connection, resultsSchema) {
   sql <- "
 SELECT
   cma.analysis_id,
@@ -182,7 +182,7 @@ FROM
 }
 
 
-getMainResults <- function(connection,
+getEstimationMainResults <- function(connection,
                            resultsSchema,
                            targetIds = c(),
                            comparatorIds = c(),
@@ -280,7 +280,7 @@ getCohortMethodAnalyses <- function(connection, resultsSchema) {
 }
 
 
-getSubgroupResults <- function(connection,
+getEstimationSubgroupResults <- function(connection,
                                targetIds = c(),
                                comparatorIds = c(),
                                outcomeIds = c(),
@@ -331,7 +331,7 @@ getSubgroupResults <- function(connection,
 }
 
 
-getControlResults <- function(connection, resultsSchema, targetId,
+getEstimationControlResults <- function(connection, resultsSchema, targetId,
                               comparatorId, analysisId, databaseId = NULL,
                               includePositiveControls = TRUE) {
   
@@ -409,7 +409,7 @@ getCmFollowUpDist <- function(connection,
 }
 
 
-getCovariateBalance <- function(connection,
+getEstimationCovariateBalance <- function(connection,
                                 resultsSchema,
                                 targetId,
                                 comparatorId,
@@ -428,10 +428,10 @@ getCovariateBalance <- function(connection,
         -- cmc.covariate_analysis_id analysis_id, #TODO: once cm_analysis_id bug fixed
         cmscb.target_mean_before before_matching_mean_treated,
         cmscb.comparator_mean_before before_matching_mean_comparator,
-        abs(cmscb.std_diff_before) before_matching_std_diff,
+        abs(cmscb.std_diff_before) abs_before_matching_std_diff, --absBeforeMatchingStdDiff
         cmscb.target_mean_after after_matching_mean_treated,
         cmscb.comparator_mean_after after_matching_mean_comparator,
-        abs(cmscb.std_diff_after) after_matching_std_diff
+        abs(cmscb.std_diff_after) abs_after_matching_std_diff
       FROM
         @results_schema.cm_shared_covariate_balance cmscb 
         JOIN @results_schema.cm_covariate cmc ON cmscb.covariate_id = cmc.covariate_id AND cmscb.analysis_id = cmc.analysis_id AND cmscb.database_id = cmc.database_id -- database_id optional
@@ -484,7 +484,7 @@ getCovariateBalance <- function(connection,
 }
 
 
-getPs <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId = NULL) {
+getEstimationPs <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId = NULL) {
   sql <- "
     SELECT
       *
@@ -517,7 +517,7 @@ getPs <- function(connection, resultsSchema, targetId, comparatorId, analysisId,
 }
 
 
-getKaplanMeier <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, databaseId, analysisId) {
+getEstimationKaplanMeier <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, databaseId, analysisId) {
   sqlTmp <- "
   SELECT
     *
@@ -557,7 +557,7 @@ getKaplanMeier <- function(connection, resultsSchema, targetId, comparatorId, ou
 }
 
 
-getAttrition <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, analysisId, databaseId) {
+getEstimationAttrition <- function(connection, resultsSchema, targetId, comparatorId, outcomeId, analysisId, databaseId) {
   sqlTmp <- "
   SELECT
     cmat.*
@@ -603,7 +603,7 @@ getAttrition <- function(connection, resultsSchema, targetId, comparatorId, outc
 }
 
 
-getStudyPeriod <- function(connection, targetId, comparatorId, databaseId) {
+getEstimationStudyPeriod <- function(connection, targetId, comparatorId, databaseId) {
   sql <- "SELECT min_date,
   max_date
   FROM comparison_summary
@@ -621,7 +621,7 @@ getStudyPeriod <- function(connection, targetId, comparatorId, databaseId) {
 }
 
 
-getPropensityModel <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId) {
+getEstimationPropensityModel <- function(connection, resultsSchema, targetId, comparatorId, analysisId, databaseId) {
   sqlTmp <- "
   SELECT
     cmpm.coefficient,
@@ -675,11 +675,11 @@ getPropensityModel <- function(connection, resultsSchema, targetId, comparatorId
 }
 
 
-getCovariateBalanceSummary <- function(connection, targetId, comparatorId, analysisId,
+getEstimationCovariateBalanceSummary <- function(connection, targetId, comparatorId, analysisId,
                                        beforeLabel = "Before matching",
                                        afterLabel = "After matching") {
   
-  balance <- getCovariateBalance(connection = connection,
+  balance <- getEstimationCovariateBalance(connection = connection,
                                  targetId = targetId,
                                  comparatorId = comparatorId,
                                  analysisId = analysisId,
@@ -704,8 +704,8 @@ getCovariateBalanceSummary <- function(connection, targetId, comparatorId, analy
   
 }
 
-getNegativeControlEstimates <- function(cohortMethodResult, connection, targetId, comparatorId, analysisId) {
-  subset <- getControlResults(cohortMethodResult, connection, targetId, comparatorId, analysisId, includePositiveControls = FALSE)
+getEstimationNegativeControlEstimates <- function(cohortMethodResult, connection, targetId, comparatorId, analysisId) {
+  subset <- getEstimationControlResults(cohortMethodResult, connection, targetId, comparatorId, analysisId, includePositiveControls = FALSE)
   subset <- subset[, c("databaseId", "logRr", "seLogRr")]
   if(nrow(subset) == 0)
     return(NULL)

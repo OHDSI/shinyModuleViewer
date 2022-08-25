@@ -35,14 +35,14 @@ kaplanMeierServer <- function(id, selectedRow, inputParams, connection, resultsS
         if (is.null(row)) {
           return(NULL)
         } else {
-          km <- getKaplanMeier(connection = connection,
+          km <- getEstimationKaplanMeier(connection = connection,
                                resultsSchema = resultsSchema,
                                targetId = inputParams()$target,
                                comparatorId = inputParams()$comparator,
                                outcomeId = inputParams()$outcome,
                                databaseId = row$databaseId,
                                analysisId = row$analysisId)
-          plot <- plotKaplanMeier(kaplanMeier = km,
+          plot <- plotEstimationKaplanMeier(kaplanMeier = km,
                                   targetName = inputParams()$target,
                                   comparatorName = inputParams()$comparator)
           return(plot)

@@ -22,7 +22,7 @@ subgroupsServer <- function(id, selectedRow, inputParams) {
           targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$target]
           comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == inputParams()$comparator]
           outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == inputParams()$outcome]
-          subgroupResults <- getSubgroupResults(connection = connection,
+          subgroupResults <- getEstimationSubgroupResults(connection = connection,
                                                 targetIds = targetId,
                                                 comparatorIds = comparatorId,
                                                 outcomeIds = outcomeId,
@@ -67,7 +67,7 @@ subgroupsServer <- function(id, selectedRow, inputParams) {
           if (is.null(subgroupResults)) {
             return(NULL)
           }
-          subgroupTable <- prepareSubgroupTable(subgroupResults, output = "html")
+          subgroupTable <- prepareEstimationSubgroupTable(subgroupResults, output = "html")
           colnames(subgroupTable) <- c("Subgroup",
                                        "Target subjects",
                                        "Comparator subjects",

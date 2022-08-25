@@ -141,39 +141,39 @@ estimationServer <- function(id,
       
       
       shiny::onStop(function() {
-        if (DBI::dbIsValid(con)) {
-          DatabaseConnector::disconnect(con)
+        if (DBI::dbIsValid(connection)) {
+          DatabaseConnector::disconnect(connection)
         }
       })
       
       output$targetWidget <- shiny::renderUI({
-        targets <- getTargetChoices(connection, resultsSchema)
+        targets <- getEstimationTargetChoices(connection, resultsSchema)
         shiny::selectInput(inputId = session$ns("target"),
                     label = "Target",
-                    choices = getSelectNamedChoices(targets$targetId,
+                    choices = getEstimationSelectNamedChoices(targets$targetId,
                                                     targets$cohortName))
       })
 
       output$comparatorWidget <- shiny::renderUI({
-        comparators <- getComparatorChoices(connection, resultsSchema)
+        comparators <- getEstimationComparatorChoices(connection, resultsSchema)
         shiny::selectInput(inputId = session$ns("comparator"),
                   label = "Comparator",
-                  choices = getSelectNamedChoices(comparators$comparatorId,
+                  choices = getEstimationSelectNamedChoices(comparators$comparatorId,
                                                    comparators$cohortName))
       })
       
       output$outcomeWidget <- shiny::renderUI({
-        outcomes <- getOutcomeChoices(connection, resultsSchema)
+        outcomes <- getEstimationOutcomeChoices(connection, resultsSchema)
         shiny::selectInput(inputId = session$ns("outcome"),
                   label = "Outcome",
-                  choices = getSelectNamedChoices(outcomes$outcomeId,
+                  choices = getEstimationSelectNamedChoices(outcomes$outcomeId,
                                                   outcomes$cohortName))
       })
       output$databaseWidget<- shiny::renderUI({
-        databases <- getDatabaseChoices(connection, resultsSchema)
+        databases <- getEstimationDatabaseChoices(connection, resultsSchema)
         shiny::checkboxGroupInput(inputId = session$ns("database"),
                          label = "Data source",
-                         choices =  getSelectNamedChoices(databases$databaseId,
+                         choices =  getEstimationSelectNamedChoices(databases$databaseId,
                                                           databases$cdmSourceAbbreviation),
                          selected = unique(databases$databaseId))
       })
@@ -181,7 +181,7 @@ estimationServer <- function(id,
         analyses <- getCmAnalysisOptions(connection, resultsSchema)
         shiny::checkboxGroupInput(inputId = session$ns("analysis"),
                          label = "Analysis",
-                         choices =  getSelectNamedChoices(analyses$analysisId,
+                         choices =  getEstimationSelectNamedChoices(analyses$analysisId,
                                                           analyses$description),
                          selected = unique(analyses$analysisId))
       })
@@ -196,26 +196,9 @@ estimationServer <- function(id,
         t$database <- input$database
         return(t)
       })
-
-      resultSubset <- reactive({
-        
-        results <- getMainResults(connection = connection,
-                                  resultsSchema = resultsSchema,
-                                  targetIds = filterEmptyNullValues(input$target),
-                                  comparatorIds = filterEmptyNullValues(input$comparator),
-                                  outcomeIds = filterEmptyNullValues(input$outcome),
-                                  databaseIds = filterEmptyNullValues(input$database),
-                                  analysisIds = filterEmptyNullValues(input$analysis))
-        results <- results[order(results$analysisId), ]
-        
-        
-        results[which(results$unblind == 0), getColumnsToBlind(results)] <- NA
-        
-        return(results)
-      })
       
 
-      selectedRow <- resultsTableServer("resultsTable", resultSubset)
+      selectedRow <- resultsTableServer("resultsTable", connection, inputParams, resultsSchema)
 
       output$rowIsSelected <- shiny::reactive({
         return(!is.null(selectedRow()))

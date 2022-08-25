@@ -34,7 +34,7 @@ populationCharacteristicsServer <- function(id, selectedRow, inputParams, connec
         if (is.null(row)) {
           return(NULL)
         } else {
-          balance <- getCovariateBalance(connection = connection,
+          balance <- getEstimationCovariateBalance(connection = connection,
                                          resultsSchema = resultsSchema,
                                          targetId = inputParams()$target,
                                          comparatorId = inputParams()$comparator,
@@ -44,7 +44,7 @@ populationCharacteristicsServer <- function(id, selectedRow, inputParams, connec
           if (nrow(balance) == 0) {
             return(NULL)
           }
-          table1 <- prepareTable1(balance = balance,
+          table1 <- prepareEstimationTable1(balance = balance,
                                   beforeLabel = paste("Before PS adjustment"),
                                   afterLabel = paste("After PS adjustment"))
           

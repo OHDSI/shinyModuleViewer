@@ -31,11 +31,29 @@ resultsTableViewer <- function(id) {
 
 
 
-resultsTableServer <- function(id, resultSubset) {
+resultsTableServer <- function(id, connection, inputParams, resultsSchema) {
   
   shiny::moduleServer(
     id,
     function(input, output, session) {
+      
+      
+      resultSubset <- reactive({
+        
+        results <- getEstimationMainResults(connection = connection,
+                                  resultsSchema = resultsSchema,
+                                  targetIds = filterEstimationEmptyNullValues(inputParams()$target),
+                                  comparatorIds = filterEstimationEmptyNullValues(inputParams()$comparator),
+                                  outcomeIds = filterEstimationEmptyNullValues(inputParams()$outcome),
+                                  databaseIds = filterEstimationEmptyNullValues(inputParams()$database),
+                                  analysisIds = filterEstimationEmptyNullValues(inputParams()$analysis))
+        results <- results[order(results$analysisId), ]
+        
+        
+        results[which(results$unblind == 0), getEstimationColumnsToBlind(results)] <- NA
+        
+        return(results)
+      })
       
       selectedRow <- shiny::reactive({
         idx <- input$mainTable_rows_selected
@@ -58,14 +76,14 @@ resultsTableServer <- function(id, resultSubset) {
           return(NULL)
         }
         table <- table[, mainColumns]
-        table$rr <- prettyHr(table$rr)
-        table$ci95Lb <- prettyHr(table$ci95Lb)
-        table$ci95Ub <- prettyHr(table$ci95Ub)
-        table$p <- prettyHr(table$p)
-        table$calibratedRr <- prettyHr(table$calibratedRr)
-        table$calibratedCi95Lb <- prettyHr(table$calibratedCi95Lb)
-        table$calibratedCi95Ub <- prettyHr(table$calibratedCi95Ub)
-        table$calibratedP <- prettyHr(table$calibratedP)
+        table$rr <- prettyEstimationHr(table$rr)
+        table$ci95Lb <- prettyEstimationHr(table$ci95Lb)
+        table$ci95Ub <- prettyEstimationHr(table$ci95Ub)
+        table$p <- prettyEstimationHr(table$p)
+        table$calibratedRr <- prettyEstimationHr(table$calibratedRr)
+        table$calibratedCi95Lb <- prettyEstimationHr(table$calibratedCi95Lb)
+        table$calibratedCi95Ub <- prettyEstimationHr(table$calibratedCi95Ub)
+        table$calibratedP <- prettyEstimationHr(table$calibratedP)
         colnames(table) <- mainColumnNames
         options = list(pageLength = 15,
                        searching = FALSE,

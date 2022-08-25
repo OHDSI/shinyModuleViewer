@@ -53,7 +53,7 @@ shinyServer(function(input, output, session) {
     if (length(databaseIds) == 0) {
       databaseIds <- "none"
     }
-    results <- getMainResults(connection = connection,
+    results <- getEstimationMainResults(connection = connection,
                               targetIds = targetId,
                               comparatorIds = comparatorId,
                               outcomeIds = outcomeId,
@@ -105,7 +105,7 @@ shinyServer(function(input, output, session) {
        targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
        comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
        outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-       balance <- getCovariateBalance(connection = connection,
+       balance <- getEstimationCovariateBalance(connection = connection,
                                       targetId = targetId,
                                       comparatorId = comparatorId,
                                       databaseId = row$databaseId,
@@ -144,14 +144,14 @@ shinyServer(function(input, output, session) {
     }
     table$description <- cohortMethodAnalysis$description[match(table$analysisId, cohortMethodAnalysis$analysisId)]
     table <- table[, mainColumns]
-    table$rr <- prettyHr(table$rr)
-    table$ci95Lb <- prettyHr(table$ci95Lb)
-    table$ci95Ub <- prettyHr(table$ci95Ub)
-    table$p <- prettyHr(table$p)
-    table$calibratedRr <- prettyHr(table$calibratedRr)
-    table$calibratedCi95Lb <- prettyHr(table$calibratedCi95Lb)
-    table$calibratedCi95Ub <- prettyHr(table$calibratedCi95Ub)
-    table$calibratedP <- prettyHr(table$calibratedP)
+    table$rr <- prettyEstimationHr(table$rr)
+    table$ci95Lb <- prettyEstimationHr(table$ci95Lb)
+    table$ci95Ub <- prettyEstimationHr(table$ci95Ub)
+    table$p <- prettyEstimationHr(table$p)
+    table$calibratedRr <- prettyEstimationHr(table$calibratedRr)
+    table$calibratedCi95Lb <- prettyEstimationHr(table$calibratedCi95Lb)
+    table$calibratedCi95Ub <- prettyEstimationHr(table$calibratedCi95Ub)
+    table$calibratedP <- prettyEstimationHr(table$calibratedP)
     colnames(table) <- mainColumnNames
     options = list(pageLength = 15,
                    searching = FALSE,
@@ -187,12 +187,12 @@ shinyServer(function(input, output, session) {
       return(NULL)
     } else {
       if (row$databaseId %in% metaAnalysisDbIds) {
-        results <- getMainResults(connection = connection,
+        results <- getEstimationMainResults(connection = connection,
                                   targetIds = row$targetId,
                                   comparatorIds = row$comparatorId,
                                   outcomeIds = row$outcomeId,
                                   analysisIds = row$analysisId)
-        table <- preparePowerTable(results, cohortMethodAnalysis, includeDatabaseId = TRUE)
+        table <- prepareEstimationPowerTable(results, cohortMethodAnalysis, includeDatabaseId = TRUE)
         table$description <- NULL
         if (blind) {
           table$targetOutcomes  <- NA
@@ -212,7 +212,7 @@ shinyServer(function(input, output, session) {
                              "Comparator IR (per 1,000 PY)",
                              "MDRR")
       } else {
-        table <- preparePowerTable(row, cohortMethodAnalysis)
+        table <- prepareEstimationPowerTable(row, cohortMethodAnalysis)
         table$description <- NULL
         table$databaseId <- NULL
         if (blind) {
@@ -269,7 +269,7 @@ shinyServer(function(input, output, session) {
                                           databaseId = row$databaseId,
                                           analysisId = row$analysisId)
       }
-      table <- prepareFollowUpDistTable(followUpDist)
+      table <- prepareEstimationFollowUpDistTable(followUpDist)
       return(table)
     }
   })
@@ -282,13 +282,13 @@ shinyServer(function(input, output, session) {
       targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
       comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
       outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-      attrition <- getAttrition(connection = connection,
+      attrition <- getEstimationAttrition(connection = connection,
                                 targetId = targetId,
                                 comparatorId = comparatorId,
                                 outcomeId = outcomeId,
                                 databaseId = row$databaseId,
                                 analysisId = row$analysisId)
-      plot <- drawAttritionDiagram(attrition)
+      plot <- drawEstimationAttritionDiagram(attrition)
       return(plot)
     }
   })
@@ -341,7 +341,7 @@ shinyServer(function(input, output, session) {
       if (nrow(bal) == 0) {
         return(NULL)
       }
-      table1 <- prepareTable1(balance = bal,
+      table1 <- prepareEstimationTable1(balance = bal,
                               beforeLabel = paste("Before PS adjustment"),
                               afterLabel = paste("After PS adjustment"))
 
@@ -383,13 +383,13 @@ shinyServer(function(input, output, session) {
     } else {
       targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
       comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-      model <- getPropensityModel(connection = connection,
+      model <- getEstimationPropensityModel(connection = connection,
                                   targetId = targetId,
                                   comparatorId = comparatorId,
                                   databaseId = row$databaseId,
                                   analysisId = row$analysisId)
       
-      table <- preparePropensityModelTable(model)
+      table <- prepareEstimationPropensityModelTable(model)
       options = list(columnDefs = list(list(className = 'dt-right',  targets = 0)),
                      pageLength = 15,
                      searching = FALSE,
@@ -413,7 +413,7 @@ shinyServer(function(input, output, session) {
       return(NULL)
     } else {
       if (row$databaseId %in% metaAnalysisDbIds) {
-        ps <- getPs(connection = connection,
+        ps <- getEstimationPs(connection = connection,
                     targetIds = row$targetId,
                     comparatorIds = row$comparatorId,
                     analysisId = row$analysisId)
@@ -421,13 +421,13 @@ shinyServer(function(input, output, session) {
         targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
         comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
         outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-        ps <- getPs(connection = connection,
+        ps <- getEstimationPs(connection = connection,
                     targetIds = targetId,
                     comparatorIds = comparatorId,
                     analysisId = row$analysisId,
                     databaseId = row$databaseId)
       }
-      plot <- plotPs(ps, input$target, input$comparator)
+      plot <- plotEstimationPs(ps, input$target, input$comparator)
       return(plot)
     }
   })
@@ -454,7 +454,7 @@ shinyServer(function(input, output, session) {
       return(NULL)
     } else {
       row <- selectedRow()
-      plot <- plotCovariateBalanceScatterPlot(balance = bal,
+      plot <- plotEstimationCovariateBalanceScatterPlot(balance = bal,
                                               beforeLabel = "Before propensity score adjustment",
                                               afterLabel = "After propensity score adjustment")
       return(plot)
@@ -530,13 +530,13 @@ shinyServer(function(input, output, session) {
     if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
       return(NULL)
     } else {
-      balanceSummary <- getCovariateBalanceSummary(connection = connection,
+      balanceSummary <- getEstimationCovariateBalanceSummary(connection = connection,
                                                    targetId = row$targetId,
                                                    comparatorId = row$comparatorId,
                                                    analysisId = row$analysisId,
                                                    beforeLabel = paste("Before", row$psStrategy),
                                                    afterLabel = paste("After", row$psStrategy))
-      plot <- plotCovariateBalanceSummary(balanceSummary,
+      plot <- plotEstimationCovariateBalanceSummary(balanceSummary,
                                           threshold = 0.1,
                                           beforeLabel = paste("Before", row$psStrategy),
                                           afterLabel = paste("After", row$psStrategy)) 
@@ -581,13 +581,13 @@ shinyServer(function(input, output, session) {
     } else {
       targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
       comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
-      controlResults <- getControlResults(connection = connection,
+      controlResults <- getEstimationControlResults(connection = connection,
                                           targetId = targetId,
                                           comparatorId = comparatorId,
                                           analysisId = row$analysisId,
                                           databaseId = row$databaseId)
 
-      plot <- plotScatter(controlResults)
+      plot <- plotEstimationScatter(controlResults)
       return(plot)
     }
   })
@@ -613,14 +613,14 @@ shinyServer(function(input, output, session) {
     if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
       return(NULL)
     } else {
-      negativeControls <- getNegativeControlEstimates(connection = connection,
+      negativeControls <- getEstimationNegativeControlEstimates(connection = connection,
                                                       targetId = row$targetId,
                                                       comparatorId = row$comparatorId,
                                                       analysisId =  row$analysisId)
       if (is.null(negativeControls))
         return(NULL)
       
-      plot <- plotEmpiricalNulls(negativeControls) 
+      plot <- plotEstimationEmpiricalNulls(negativeControls) 
       return(plot)
     }
   })
@@ -649,13 +649,13 @@ shinyServer(function(input, output, session) {
       targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
       comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
       outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-      km <- getKaplanMeier(connection = connection,
+      km <- getEstimationKaplanMeier(connection = connection,
                                    targetId = targetId,
                                    comparatorId = comparatorId,
                                    outcomeId = outcomeId,
                                    databaseId = row$databaseId,
                                    analysisId = row$analysisId)
-      plot <- plotKaplanMeier(kaplanMeier = km,
+      plot <- plotEstimationKaplanMeier(kaplanMeier = km,
                               targetName = input$target,
                               comparatorName = input$comparator)
       return(plot)
@@ -698,12 +698,12 @@ shinyServer(function(input, output, session) {
     if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
       return(NULL)
     } else {
-      results <- getMainResults(connection = connection,
+      results <- getEstimationMainResults(connection = connection,
                                 targetIds = row$targetId,
                                 comparatorIds = row$comparatorId,
                                 outcomeIds = row$outcomeId,
                                 analysisIds = row$analysisId)
-      plot <- plotForest(results)
+      plot <- plotEstimationForest(results)
       return(plot)
     }
   })
@@ -744,7 +744,7 @@ shinyServer(function(input, output, session) {
       targetId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$target]
       comparatorId <- exposureOfInterest$exposureId[exposureOfInterest$exposureName == input$comparator]
       outcomeId <- outcomeOfInterest$outcomeId[outcomeOfInterest$outcomeName == input$outcome]
-      subgroupResults <- getSubgroupResults(connection = connection,
+      subgroupResults <- getEstimationSubgroupResults(connection = connection,
                                             targetIds = targetId,
                                             comparatorIds = comparatorId,
                                             outcomeIds = outcomeId,
@@ -789,7 +789,7 @@ shinyServer(function(input, output, session) {
       if (is.null(subgroupResults)) {
         return(NULL)
       }
-      subgroupTable <- prepareSubgroupTable(subgroupResults, output = "html")
+      subgroupTable <- prepareEstimationSubgroupTable(subgroupResults, output = "html")
       colnames(subgroupTable) <- c("Subgroup",
                                    "Target subjects",
                                    "Comparator subjects",

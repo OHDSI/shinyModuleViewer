@@ -38,12 +38,12 @@ propensityScoreDistServer <- function(id, selectedRow, inputParams, connection, 
         } else {
           if (FALSE && row$databaseId %in% metaAnalysisDbIds) {
             #TODO: update once MA implemented
-            ps <- getPs(connection = connection,
+            ps <- getEstimationPs(connection = connection,
                         targetIds = row$targetId,
                         comparatorIds = row$comparatorId,
                         analysisId = row$analysisId)
           } else {
-            ps <- getPs(connection = connection,
+            ps <- getEstimationPs(connection = connection,
                         resultsSchema = resultsSchema,
                         targetId = inputParams()$target,
                         comparatorId = inputParams()$comparator,
@@ -53,7 +53,7 @@ propensityScoreDistServer <- function(id, selectedRow, inputParams, connection, 
           if (nrow(ps) == 0) {
             return(NULL) #TODO: handle more gracefully
           }
-          plot <- plotPs(ps, inputParams()$target, inputParams()$comparator)
+          plot <- plotEstimationPs(ps, inputParams()$target, inputParams()$comparator)
           return(plot)
         }
       })

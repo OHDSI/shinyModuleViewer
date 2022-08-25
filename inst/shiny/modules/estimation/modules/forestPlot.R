@@ -29,12 +29,12 @@ forestPlotServer <- function(id, selectedRow, inputParams) {
         if (is.null(row) || !(row$databaseId %in% metaAnalysisDbIds)) {
           return(NULL)
         } else {
-          results <- getMainResults(connection = connection,
+          results <- getEstimationMainResults(connection = connection,
                                     targetIds = row$targetId,
                                     comparatorIds = row$comparatorId,
                                     outcomeIds = row$outcomeId,
                                     analysisIds = row$analysisId)
-          plot <- plotForest(results)
+          plot <- plotEstimationForest(results)
           return(plot)
         }
       })

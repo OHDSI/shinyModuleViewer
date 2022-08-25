@@ -6,11 +6,11 @@ createTitle <- function(tcoDbs) {
 
   titles <- paste(tcoDbs$outcomeName,
                   "risk in new-users of",
-                  uncapitalize(tcoDbs$targetName),
+                  uncapitalizeEstimation(tcoDbs$targetName),
                   "versus",
-                  uncapitalize(tcoDbs$comparatorName),
+                  uncapitalizeEstimation(tcoDbs$comparatorName),
                   "for",
-                  uncapitalize(tcoDbs$indicationId),
+                  uncapitalizeEstimation(tcoDbs$indicationId),
                   "in the",
                   tcoDbs$databaseId,
                   "database")
@@ -34,26 +34,26 @@ createAuthors <- function() {
 
 createAbstract <- function(tcoDb) {
   
-  targetName <- uncapitalize(exposures$exposureName[match(tcoDb$targetId, exposures$exposureId)])
-  comparatorName <- uncapitalize(exposures$exposureName[match(tcoDb$comparatorId, exposures$exposureId)])
-  outcomeName <- uncapitalize(outcomes$outcomeName[match(tcoDb$outcomeId, outcomes$outcomeId)])
-  indicationId <- uncapitalize(exposures$indicationId[match(tcoDb$targetId, exposures$exposureId)])
+  targetName <- uncapitalizeEstimation(exposures$exposureName[match(tcoDb$targetId, exposures$exposureId)])
+  comparatorName <- uncapitalizeEstimation(exposures$exposureName[match(tcoDb$comparatorId, exposures$exposureId)])
+  outcomeName <- uncapitalizeEstimation(outcomes$outcomeName[match(tcoDb$outcomeId, outcomes$outcomeId)])
+  indicationId <- uncapitalizeEstimation(exposures$indicationId[match(tcoDb$targetId, exposures$exposureId)])
   
-  results <- getMainResults(connection,
+  results <- getEstimationMainResults(connection,
                             targetIds = tcoDb$targetId,
                             comparatorIds = tcoDb$comparatorId,
                             outcomeIds = tcoDb$outcomeId,
                             databaseIds = tcoDb$databaseId)
   
-  studyPeriod <- getStudyPeriod(connection = connection,
+  studyPeriod <- getEstimationStudyPeriod(connection = connection,
                                 targetId = tcoDb$targetId,
                                 comparatorId = tcoDb$comparatorId,
                                 databaseId = tcoDb$databaseId)  
   
-  writeAbstract(outcomeName, targetName, comparatorName, tcoDb$databaseId, studyPeriod, results)
+  writeEstimationAbstract(outcomeName, targetName, comparatorName, tcoDb$databaseId, studyPeriod, results)
 }
 
-writeAbstract <- function(outcomeName,
+writeEstimationAbstract <- function(outcomeName,
                            targetName,
                            comparatorName,
                            databaseId,
@@ -70,15 +70,15 @@ writeAbstract <- function(outcomeName,
     "We identify ", mainResults[1, "targetSubjects"], " ", targetName, " and ", mainResults[1, "comparatorSubjects"], " ", comparatorName, " patients for the on-treatment design, totaling ", round(mainResults[1, "targetDays"] / 365.24), " and ", round(mainResults[1, "comparatorDays"] / 365.24), " patient-years of observation, and ", mainResults[1, "targetOutcomes"], " and ", mainResults[1, "comparatorOutcomes"], " events respectively.  ",
     "We control for measured confounding using propensity score trimming and stratification or matching based on an expansive propensity score model that includes all measured patient features before treatment initiation.  ",
     "We account for unmeasured confounding using negative and positive controls to estimate and adjust for residual systematic bias in the study design and data source, providing calibrated confidence intervals and p-values.  ",
-    "In terms of ", outcomeName, ", ", targetName, " has a ", judgeHazardRatio(mainResults[1, "calibratedCi95Lb"], mainResults[1, "calibratedCi95Ub"]), 
-    " risk as compared to ", comparatorName, " [HR: ", prettyHr(mainResults[1, "calibratedRr"]), ", 95% confidence interval (CI) ", 
-    prettyHr(mainResults[1, "calibratedCi95Lb"]), " - ", prettyHr(mainResults[1, "calibratedCi95Ub"]), "]."
+    "In terms of ", outcomeName, ", ", targetName, " has a ", judgeEstimationHazardRatio(mainResults[1, "calibratedCi95Lb"], mainResults[1, "calibratedCi95Ub"]), 
+    " risk as compared to ", comparatorName, " [HR: ", prettyEstimationHr(mainResults[1, "calibratedRr"]), ", 95% confidence interval (CI) ", 
+    prettyEstimationHr(mainResults[1, "calibratedCi95Lb"]), " - ", prettyEstimationHr(mainResults[1, "calibratedCi95Ub"]), "]."
   )
 
   abstract
 }
 
-prepareFollowUpDistTable <- function(followUpDist) {
+prepareEstimationFollowUpDistTable <- function(followUpDist) {
   targetRow <- data.frame(Database = followUpDist$databaseId,
                           Cohort = "Target",
                           Min = followUpDist$targetMinDays,
@@ -110,7 +110,7 @@ prepareFollowUpDistTable <- function(followUpDist) {
   return(table)
 }
 
-prepareMainResultsTable <- function(mainResults, analyses) {
+prepareEstimationMainResultsTable <- function(mainResults, analyses) {
   table <- mainResults
   table$hr <- sprintf("%.2f (%.2f - %.2f)", mainResults$rr, mainResults$ci95Lb, mainResults$ci95Ub)
   table$p <- sprintf("%.2f", table$p)
@@ -126,7 +126,7 @@ prepareMainResultsTable <- function(mainResults, analyses) {
 }
 
 
-preparePowerTable <- function(mainResults, connection, resultsSchema) {
+prepareEstimationPowerTable <- function(mainResults, connection, resultsSchema) {
   analyses <- getCohortMethodAnalyses(connection, resultsSchema)
   table <- merge(mainResults, analyses)
   alpha <- 0.05
@@ -218,7 +218,7 @@ preparePowerTableLegacy <- function(mainResults, analyses, includeDatabaseId = F
   return(table)
 }
 
-prepareSubgroupTable <- function(subgroupResults, output = "latex") {
+prepareEstimationSubgroupTable <- function(subgroupResults, output = "latex") {
   rnd <- function(x) {
     ifelse(x > 10, sprintf("%.1f", x), sprintf("%.2f", x))
   }
@@ -269,7 +269,7 @@ prepareSubgroupTable <- function(subgroupResults, output = "latex") {
   return(table)
 }
 
-prepareTable1 <- function(balance,
+prepareEstimationTable1 <- function(balance,
                           beforeLabel = "Before stratification",
                           afterLabel = "After stratification",
                           targetLabel = "Target",
@@ -403,7 +403,7 @@ prepareTable1 <- function(balance,
   return(resultsTable)
 }
 
-plotPs <- function(ps, targetName, comparatorName) {
+plotEstimationPs <- function(ps, targetName, comparatorName) {
   if (is.null(ps$databaseId)) {
     ps <- rbind(data.frame(x = ps$preferenceScore, y = ps$targetDensity, group = targetName),
                 data.frame(x = ps$preferenceScore, y = ps$comparatorDensity, group = comparatorName))
@@ -437,7 +437,7 @@ plotPs <- function(ps, targetName, comparatorName) {
   return(plot)
 }
 
-plotAllPs <- function(ps) {
+plotEstimationAllPs <- function(ps) {
   ps <- rbind(data.frame(targetName = ps$targetName,
                          comparatorName = ps$comparatorName,
                          x = ps$preferenceScore, 
@@ -473,7 +473,7 @@ plotAllPs <- function(ps) {
 }
 
 
-plotCovariateBalanceScatterPlot <- function(balance, beforeLabel = "Before stratification", afterLabel = "After stratification") {
+plotEstimationCovariateBalanceScatterPlot <- function(balance, beforeLabel = "Before stratification", afterLabel = "After stratification") {
   limits <- c(min(c(balance$absBeforeMatchingStdDiff, balance$absAfterMatchingStdDiff),
                   na.rm = TRUE),
               max(c(balance$absBeforeMatchingStdDiff, balance$absAfterMatchingStdDiff),
@@ -491,7 +491,7 @@ plotCovariateBalanceScatterPlot <- function(balance, beforeLabel = "Before strat
   return(plot)
 }
 
-plotKaplanMeier <- function(kaplanMeier, targetName, comparatorName) {
+plotEstimationKaplanMeier <- function(kaplanMeier, targetName, comparatorName) {
   data <- rbind(data.frame(time = kaplanMeier$time,
                            s = kaplanMeier$targetSurvival,
                            lower = kaplanMeier$targetSurvivalLb,
@@ -563,7 +563,7 @@ plotKaplanMeier <- function(kaplanMeier, targetName, comparatorName) {
   return(plot)
 }
 
-plotCovariateBalanceSummary <- function(balanceSummary,
+plotEstimationCovariateBalanceSummary <- function(balanceSummary,
                                         threshold = 0,
                                         beforeLabel = "Before matching",
                                         afterLabel = "After matching") {
@@ -639,11 +639,11 @@ plotCovariateBalanceSummary <- function(balanceSummary,
   return(plot)
 }
 
-judgeCoverage <- function(values) {
+judgeCmCoverage <- function(values) {
   ifelse(any(values < 0.9), "poor", "acceptable")
 }
 
-getCoverage <- function(controlResults) {
+getCmCoverage <- function(controlResults) {
   d <- rbind(data.frame(yGroup = "Uncalibrated",
                         logRr = controlResults$logRr,
                         seLogRr = controlResults$seLogRr,
@@ -672,7 +672,7 @@ getCoverage <- function(controlResults) {
   data.frame(true = temp2$Group, group = temp2$yGroup, coverage = temp2$coverage)
 }
 
-plotScatter <- function(controlResults) {
+plotEstimationScatter <- function(controlResults) {
   size <- 2
   labelY <- 0.7
   d <- rbind(data.frame(yGroup = "Uncalibrated",
@@ -770,7 +770,7 @@ plotScatter <- function(controlResults) {
   return(plot)
 }
 
-plotLargeScatter <- function(d, xLabel) {
+plotEstimationLargeScatter <- function(d, xLabel) {
   d$Significant <- d$ci95Lb > 1 | d$ci95Ub < 1
   
   oneRow <- data.frame(nLabel = paste0(formatC(nrow(d), big.mark = ","), " estimates"),
@@ -828,7 +828,7 @@ plotLargeScatter <- function(d, xLabel) {
   return(plot)
 }
 
-drawAttritionDiagram <- function(attrition,
+drawEstimationAttritionDiagram <- function(attrition,
                                  targetLabel = "Target",
                                  comparatorLabel = "Comparator") {
   addStep <- function(data, attrition, row) {
@@ -966,11 +966,11 @@ drawAttritionDiagram <- function(attrition,
   return(p)
 }
 
-judgeHazardRatio <- function(hrLower, hrUpper) {
-  nonZeroHazardRatio(hrLower, hrUpper, c("lower", "higher", "similar"))
+judgeEstimationHazardRatio <- function(hrLower, hrUpper) {
+  nonZeroEstimationHazardRatio(hrLower, hrUpper, c("lower", "higher", "similar"))
 }
 
-nonZeroHazardRatio <- function(hrLower, hrUpper, terms) {
+nonZeroEstimationHazardRatio <- function(hrLower, hrUpper, terms) {
   if (hrUpper < 1) {
     return(terms[1])
   } else if (hrLower > 1) {
@@ -981,47 +981,47 @@ nonZeroHazardRatio <- function(hrLower, hrUpper, terms) {
 }
 
 judgeEffectiveness <- function(hrLower, hrUpper) {
-  nonZeroHazardRatio(hrLower, hrUpper, c("less", "more", "as"))
+  nonZeroEstimationHazardRatio(hrLower, hrUpper, c("less", "more", "as"))
 }
 
-prettyHr <- function(x) {
+prettyEstimationHr <- function(x) {
   result <- sprintf("%.2f", x)
   result[is.na(x) | x > 100] <- "NA"
   return(result)
 }
 
-goodPropensityScore <- function(value) {
+goodEstimationPropensityScore <- function(value) {
   return(value > 1)
 }
 
-goodSystematicBias <- function(value) {
+goodEstimationSystematicBias <- function(value) {
   return(value > 1)
 }
 
-judgePropensityScore <- function(ps, bias) {
+judgeCmPropensityScore <- function(ps, bias) {
   paste0(" ",
-         ifelse(goodPropensityScore(ps), "substantial", "inadequate"),
+         ifelse(goodEstimationPropensityScore(ps), "substantial", "inadequate"),
          " control of measured confounding by propensity score adjustment, and ",
-         ifelse(goodSystematicBias(bias), "minimal", "non-negligible"),
+         ifelse(goodEstimationSystematicBias(bias), "minimal", "non-negligible"),
          " residual systematic bias through negative and positive control experiments",
-         ifelse(goodPropensityScore(ps) && goodSystematicBias(bias),
+         ifelse(goodEstimationPropensityScore(ps) && goodEstimationSystematicBias(bias),
                 ", lending credibility to our effect estimates",
                 ""))
 }
 
-uncapitalize <- function(x) {
+uncapitalizeEstimation <- function(x) {
   if (is.character(x)) {
     substr(x, 1, 1) <- tolower(substr(x, 1, 1))
   }
   x
 }
 
-capitalize <- function(x) {
+capitalizeCm <- function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
   x
 }
 
-createDocument <- function(targetId,
+createDocumentCm <- function(targetId,
                            comparatorId,
                            outcomeId,
                            databaseId,
@@ -1101,7 +1101,7 @@ createDocument <- function(targetId,
   invisible(outputFile)
 }
 
-preparePropensityModelTable <- function(model) {
+prepareEstimationPropensityModelTable <- function(model) {
   rnd <- function(x) {
     ifelse(x > 10, sprintf("%.1f", x), sprintf("%.2f", x))
   }
@@ -1111,7 +1111,7 @@ preparePropensityModelTable <- function(model) {
   return(table)
 }
 
-plotEmpiricalNulls <- function(negativeControls, limits = c(0.1, 10)) {
+plotEstimationEmpiricalNulls <- function(negativeControls, limits = c(0.1, 10)) {
   labels <- unique(negativeControls$databaseId)
   labels <- labels[!(labels %in% metaAnalysisDbIds)]
   labels <- labels[order(labels)]
@@ -1203,7 +1203,7 @@ plotEmpiricalNulls <- function(negativeControls, limits = c(0.1, 10)) {
   return(plot)
 }
 
-plotForest <- function(results, limits = c(0.1, 10)) {
+plotEstimationForest <- function(results, limits = c(0.1, 10)) {
   
   dbResults <- results[!(results$databaseId %in% metaAnalysisDbIds), ]
   dbResults <- dbResults[!is.na(dbResults$seLogRr), ]
