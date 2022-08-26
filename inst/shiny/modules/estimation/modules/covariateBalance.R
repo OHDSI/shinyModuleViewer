@@ -33,7 +33,7 @@ estimationCovariateBalanceViewer <- function(id) {
 
 
 
-estimatoinCovariateBalanceServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationCovariateBalanceServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

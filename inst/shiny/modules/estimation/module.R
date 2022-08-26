@@ -251,7 +251,7 @@ estimationServer <- function(id,
 
       estimationPropensityScoreDistServer("propensityScoreDist", selectedRow, inputParams, connection, resultsSchema)
 
-      estimatoinCovariateBalanceServer("covariateBalance", selectedRow, inputParams, connection, resultsSchema)
+      estimationCovariateBalanceServer("covariateBalance", selectedRow, inputParams, connection, resultsSchema)
 
       estimationSystematicErrorServer("systematicError", selectedRow, inputParams, connection, resultsSchema)
 
