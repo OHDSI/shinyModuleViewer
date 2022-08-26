@@ -1,6 +1,6 @@
 
 
-forestPlotViewer <- function(id) {
+estimationForestPlotViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -19,7 +19,7 @@ forestPlotViewer <- function(id) {
 
 
 
-forestPlotServer <- function(id, selectedRow, inputParams) {
+estimationForestPlotServer <- function(id, selectedRow, inputParams) {
   
   shiny::moduleServer(
     id,

@@ -1,12 +1,12 @@
 
-titlePanelViewer <- function(id) {
+estimationTitlePanelViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::uiOutput(ns("titleText"))
 }
 
 
-titlePanelServer <- function(id) {
+estimationTitlePanelServer <- function(id) {
   
   shiny::moduleServer(
     id,

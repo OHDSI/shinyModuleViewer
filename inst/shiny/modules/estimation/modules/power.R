@@ -1,7 +1,7 @@
 
 
 
-powerViewer <- function(id) {
+estimationPowerViewer <- function(id) {
   
   ns <- shiny::NS(id)
   
@@ -15,7 +15,7 @@ powerViewer <- function(id) {
 
 
 
-powerServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationPowerServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

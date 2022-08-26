@@ -1,5 +1,5 @@
 
-subgroupsViewer <- function(id) {
+estimationSubgroupsViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -8,7 +8,7 @@ subgroupsViewer <- function(id) {
   )
 }
 
-subgroupsServer <- function(id, selectedRow, inputParams) {
+estimationSubgroupsServer <- function(id, selectedRow, inputParams) {
   
   shiny::moduleServer(
     id,

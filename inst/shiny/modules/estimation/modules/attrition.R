@@ -1,6 +1,6 @@
 
 
-attritionViewer <- function(id) {
+estimationAttritionViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -15,7 +15,7 @@ attritionViewer <- function(id) {
 }
 
 
-attritionServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationAttritionServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

@@ -1,5 +1,5 @@
 
-propensityScoreDistViewer <- function(id) {
+estimationPropensityScoreDistViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -25,7 +25,7 @@ propensityScoreDistViewer <- function(id) {
 
 
 
-propensityScoreDistServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationPropensityScoreDistServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

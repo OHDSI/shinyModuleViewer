@@ -39,7 +39,7 @@ estimationViewer <- function(id) {
   ns <- shiny::NS(id)
   
   fluidPage(style = "width:1500px;",
-            titlePanelViewer(ns("titlePanel")),
+            estimationTitlePanelViewer(ns("titlePanel")),
             tags$head(tags$style(type = "text/css", "
              #loadmessage {
                                  position: fixed;
@@ -67,38 +67,38 @@ estimationViewer <- function(id) {
                      uiOutput(outputId = ns("analysisWidget"))
               ),
               column(width = 9,
-                     resultsTableViewer(ns("resultsTable")),
+                     estimationResultsTableViewer(ns("resultsTable")),
                      conditionalPanel("output.rowIsSelected == true", ns = ns,
                                       tabsetPanel(id = ns("detailsTabsetPanel"),
                                                   tabPanel(title = "Power",
-                                                           powerViewer(ns("power"))
+                                                           estimationPowerViewer(ns("power"))
                                                   ),
                                                   tabPanel(title = "Attrition",
-                                                           attritionViewer(ns("attrition"))
+                                                           estimationAttritionViewer(ns("attrition"))
                                                            ),
                                                   tabPanel(title = "Population characteristics",
-                                                           populationCharacteristicsViewer(ns("popCharacteristics"))
+                                                           estimationPopulationCharacteristicsViewer(ns("popCharacteristics"))
                                                            ),
                                                   tabPanel(title = "Propensity model",
-                                                           propensityModelViewer(ns("propensityModel"))
+                                                           estimationPropensityModelViewer(ns("propensityModel"))
                                                            ),
                                                   tabPanel(title = "Propensity scores",
-                                                           propensityScoreDistViewer(ns("propensityScoreDist"))
+                                                           estimationPropensityScoreDistViewer(ns("propensityScoreDist"))
                                                            ),
                                                   tabPanel(title = "Covariate balance",
-                                                           covariateBalanceViewer(ns("covariateBalance"))
+                                                           estimationCovariateBalanceViewer(ns("covariateBalance"))
                                                            ),
                                                   tabPanel(title = "Systematic error",
-                                                           systematicErrorViewer(ns("systematicError"))
+                                                           estimationSystematicErrorViewer(ns("systematicError"))
                                                            ),
                                                   tabPanel(title = "Forest plot",
-                                                           forestPlotViewer(ns("forestPlot"))
+                                                           estimationForestPlotViewer(ns("forestPlot"))
                                                            ),
                                                   tabPanel(title = "Kaplan-Meier",
-                                                           kaplanMeierViewer(ns("kaplanMeier"))
+                                                           estimationKaplanMeierViewer(ns("kaplanMeier"))
                                                            ),
                                                   tabPanel(title = "Subgroups",
-                                                           subgroupsViewer(ns("subgroups"))
+                                                           estimationSubgroupsViewer(ns("subgroups"))
                                                            )
 
                                       ) # end tabsetPanel
@@ -119,7 +119,7 @@ estimationServer <- function(id,
     id,
     function(input, output, session) {
       
-      titlePanelServer("titlePanel")
+      estimationTitlePanelServer("titlePanel")
       
       connection <- NULL
       dataFolder <- NULL
@@ -198,7 +198,7 @@ estimationServer <- function(id,
       })
       
 
-      selectedRow <- resultsTableServer("resultsTable", connection, inputParams, resultsSchema)
+      selectedRow <- estimationResultsTableServer("resultsTable", connection, inputParams, resultsSchema)
 
       output$rowIsSelected <- shiny::reactive({
         return(!is.null(selectedRow()))
@@ -241,27 +241,27 @@ estimationServer <- function(id,
       shiny::outputOptions(output, "isMetaAnalysis", suspendWhenHidden = FALSE)
 
 
-      powerServer("power", selectedRow, inputParams, connection, resultsSchema)
+      estimationPowerServer("power", selectedRow, inputParams, connection, resultsSchema)
 
-      attritionServer("attrition", selectedRow, inputParams, connection, resultsSchema)
+      estimationAttritionServer("attrition", selectedRow, inputParams, connection, resultsSchema)
 
-      populationCharacteristicsServer("popCharacteristics", selectedRow, inputParams, connection, resultsSchema)
+      estimationPopulationCharacteristicsServer("popCharacteristics", selectedRow, inputParams, connection, resultsSchema)
 
-      propensityModelServer("propensityModel", selectedRow, inputParams, connection, resultsSchema)
+      estimationPropensityModelServer("propensityModel", selectedRow, inputParams, connection, resultsSchema)
 
-      propensityScoreDistServer("propensityScoreDist", selectedRow, inputParams, connection, resultsSchema)
+      estimationPropensityScoreDistServer("propensityScoreDist", selectedRow, inputParams, connection, resultsSchema)
 
-      covariateBalanceServer("covariateBalance", selectedRow, inputParams, connection, resultsSchema)
+      estimatoinCovariateBalanceServer("covariateBalance", selectedRow, inputParams, connection, resultsSchema)
 
-      systematicErrorServer("systematicError", selectedRow, inputParams, connection, resultsSchema)
+      estimationSystematicErrorServer("systematicError", selectedRow, inputParams, connection, resultsSchema)
 
-      kaplanMeierServer("kaplanMeier", selectedRow, inputParams, connection, resultsSchema)
+      estimationKaplanMeierServer("kaplanMeier", selectedRow, inputParams, connection, resultsSchema)
 
       #TODO: complete once MA implemented
-      # forestPlotServer("forestPlot", selectedRow, inputParams)
+      # estimationForestPlotServer("forestPlot", selectedRow, inputParams)
 
       #TODO: revisit once subgroup example conducted
-      subgroupsServer("subgroups", selectedRow, inputParams)
+      estimationSubgroupsServer("subgroups", selectedRow, inputParams)
    
     }
   )

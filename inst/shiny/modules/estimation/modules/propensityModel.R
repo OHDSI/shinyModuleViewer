@@ -1,7 +1,7 @@
 
 
 
-propensityModelViewer <- function(id) {
+estimationPropensityModelViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -12,7 +12,7 @@ propensityModelViewer <- function(id) {
 
 
 
-propensityModelServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationPropensityModelServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

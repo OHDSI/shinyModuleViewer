@@ -1,7 +1,7 @@
 
 
 
-systematicErrorViewer <- function(id) {
+estimationSystematicErrorViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -29,7 +29,7 @@ systematicErrorViewer <- function(id) {
 }
 
 
-systematicErrorServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationSystematicErrorServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

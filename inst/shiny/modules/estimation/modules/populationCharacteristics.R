@@ -1,5 +1,5 @@
 
-populationCharacteristicsViewer <- function(id) {
+estimationPopulationCharacteristicsViewer <- function(id) {
   
   ns <- shiny::NS(id)
   shiny::div(
@@ -9,7 +9,7 @@ populationCharacteristicsViewer <- function(id) {
 }
 
 
-populationCharacteristicsServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationPopulationCharacteristicsServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

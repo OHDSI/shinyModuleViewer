@@ -1,6 +1,6 @@
 
 
-kaplanMeierViewer <- function(id) {
+estimationKaplanMeierViewer <- function(id) {
   ns <- shiny::NS(id)
   
   shiny::div(
@@ -14,7 +14,7 @@ kaplanMeierViewer <- function(id) {
   )
 }
 
-kaplanMeierServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
+estimationKaplanMeierServer <- function(id, selectedRow, inputParams, connection, resultsSchema) {
   
   shiny::moduleServer(
     id,

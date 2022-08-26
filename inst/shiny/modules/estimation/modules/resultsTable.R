@@ -22,7 +22,7 @@ mainColumnNames <- c("<span title=\"Analysis\">Analysis</span>",
                      "<span title=\"Two-sided p-value (calibrated)\">Cal.P</span>")
 
 
-resultsTableViewer <- function(id) {
+estimationResultsTableViewer <- function(id) {
   ns <- shiny::NS(id)
   
   DT::dataTableOutput(outputId = ns("mainTable"))
@@ -31,7 +31,7 @@ resultsTableViewer <- function(id) {
 
 
 
-resultsTableServer <- function(id, connection, inputParams, resultsSchema) {
+estimationResultsTableServer <- function(id, connection, inputParams, resultsSchema) {
   
   shiny::moduleServer(
     id,
